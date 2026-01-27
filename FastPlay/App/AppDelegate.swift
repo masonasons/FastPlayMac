@@ -59,11 +59,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let state = SettingsManager.shared.restorePlaybackState() {
                 PlaylistManager.shared.addFile(state.path)
                 if PlaylistManager.shared.count > 0 {
-                    PlaylistManager.shared.playTrack(at: 0)
-                    // Seek to saved position after a short delay to allow stream to load
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Load and seek to saved position, then start playback
+                    PlaylistManager.shared.loadTrack(at: 0)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         AudioEngine.shared.seek(to: state.position)
-                        AudioEngine.shared.pause()  // Start paused, user can resume
+                        AudioEngine.shared.play()
                     }
                 }
             }

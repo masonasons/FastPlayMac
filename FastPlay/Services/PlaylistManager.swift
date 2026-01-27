@@ -240,6 +240,20 @@ class PlaylistManager {
         }
     }
 
+    /// Load track at index without starting playback
+    func loadTrack(at index: Int) {
+        guard index >= 0 && index < tracks.count else { return }
+
+        currentIndex = index
+        let path = tracks[index]
+
+        if path.hasPrefix("http://") || path.hasPrefix("https://") {
+            _ = AudioEngine.shared.loadURL(path)
+        } else {
+            _ = AudioEngine.shared.loadFile(path)
+        }
+    }
+
     /// Play next track
     func next() {
         guard !tracks.isEmpty else { return }
