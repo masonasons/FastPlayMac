@@ -1,0 +1,104 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download BASS dependencies
+        run: |
+          chmod +x download-deps.sh
+          ./download-deps.sh
+
+      - name: Build with Xcode
+        run: |
+          xcodebuild -project FastPlay.xcodeproj \
+            -scheme FastPlay \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create distribution
+        run: |
+          APP_PATH="build/Build/Products/Release/FastPlay.app"
+          if [ -d "$APP_PATH" ]; then
+            # Copy Frameworks into app bundle
+            mkdir -p "$APP_PATH/Contents/Frameworks"
+            cp Frameworks/*.dylib "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
+
+            # Create zip
+            cd build/Build/Products/Release
+            zip -r ../../../../FastPlayMac.zip FastPlay.app
+            cd ../../../../
+          else
+            echo "App not found at $APP_PATH"
+            find build -name "*.app" -type d
+            exit 1
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: FastPlayMac.zip
+
+  release:
+    needs: [build-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: artifacts/
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Delete existing latest release
+        run: gh release delete latest --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Build
+          body: |
+            Automated build from commit ${{ github.sha }}
+
+            **Built:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.event.head_commit.message }}
+
+            This release is automatically updated on every commit to master.
+
+            ## Download
+            - **macOS:** FastPlayMac.zip
+
+            ## Installation
+            1. Download and unzip FastPlayMac.zip
+            2. Move FastPlay.app to /Applications
+            3. On first launch, right-click and select "Open" to bypass Gatekeeper
+          files: artifacts/*
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
