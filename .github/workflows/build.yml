@@ -39,6 +39,19 @@ jobs:
             mkdir -p "$APP_PATH/Contents/Frameworks"
             cp Frameworks/*.dylib "$APP_PATH/Contents/Frameworks/" 2>/dev/null || true
 
+            # Ad-hoc sign all dylibs
+            for dylib in "$APP_PATH/Contents/Frameworks/"*.dylib; do
+              if [ -f "$dylib" ]; then
+                codesign --force --sign - "$dylib"
+              fi
+            done
+
+            # Ad-hoc sign the main executable
+            codesign --force --sign - "$APP_PATH/Contents/MacOS/FastPlay"
+
+            # Ad-hoc sign the entire app bundle
+            codesign --force --deep --sign - "$APP_PATH"
+
             # Create zip
             cd build/Build/Products/Release
             zip -r ../../../../FastPlayMac.zip FastPlay.app
@@ -95,8 +108,9 @@ jobs:
 
             ## Installation
             1. Download and unzip FastPlayMac.zip
-            2. Move FastPlay.app to /Applications
-            3. On first launch, right-click and select "Open" to bypass Gatekeeper
+            2. Open Terminal and run: `xattr -cr ~/Downloads/FastPlay.app`
+            3. Move FastPlay.app to /Applications
+            4. Double-click to launch
           files: artifacts/*
           prerelease: true
           make_latest: false
