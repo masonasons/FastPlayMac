@@ -168,6 +168,11 @@ DWORD BASS_Encode_FLAC_StartFile(DWORD handle, const char * _Nullable options, D
 #include "BASS/bassmix.h"
 #endif
 
+// BASSFLAC for FLAC support (includes TAG_FLAC_PICTURE)
+#if __has_include("BASS/bassflac.h")
+#include "BASS/bassflac.h"
+#endif
+
 // BASSMIDI for MIDI file support
 #if __has_include("BASS/bassmidi.h")
 #include "BASS/bassmidi.h"

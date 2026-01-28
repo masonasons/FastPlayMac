@@ -6,6 +6,7 @@
 //  Maps to Windows player.cpp
 //
 
+import AppKit
 import Foundation
 import UniformTypeIdentifiers
 
@@ -793,6 +794,157 @@ class AudioEngine {
     func getTag(_ key: String) -> String? {
         let tags = getCurrentTags()
         return tags[key.lowercased()]
+    }
+
+    /// Get current track artwork as TIFF data (for AppleScript/Airfoil integration)
+    func getArtworkData() -> Data? {
+        guard sourceStream != 0 else { return nil }
+
+        // Try FLAC picture (BASS_TAG_FLAC_PICTURE)
+        if let artwork = extractFLACPicture() {
+            return artwork
+        }
+
+        // Try MP4/M4A cover art (BASS_TAG_MP4_COVERART)
+        if let artwork = extractMP4Artwork() {
+            return artwork
+        }
+
+        // Try ID3v2 APIC frame (MP3 files)
+        if let artwork = extractID3v2Artwork() {
+            return artwork
+        }
+
+        return nil
+    }
+
+    private func extractFLACPicture() -> Data? {
+        // BASS_TAG_FLAC_PICTURE + index (0 for first picture)
+        let tagType = DWORD(0x12000)
+        guard let tagPtr = BASS_ChannelGetTags(sourceStream, tagType) else { return nil }
+
+        // TAG_FLAC_PICTURE structure: apic, mime, desc, width, height, depth, colors, length, data
+        let picture = tagPtr.withMemoryRebound(to: TAG_FLAC_PICTURE.self, capacity: 1) { $0.pointee }
+        guard picture.length > 0, let data = picture.data else { return nil }
+
+        let imageData = Data(bytes: data, count: Int(picture.length))
+        return convertToTIFF(imageData)
+    }
+
+    private func extractMP4Artwork() -> Data? {
+        // BASS_TAG_MP4_COVERART + index (0 for first cover)
+        let tagType = DWORD(0x1400)
+        guard let tagPtr = BASS_ChannelGetTags(sourceStream, tagType) else { return nil }
+
+        // TAG_BINARY structure: data pointer and length
+        let binary = tagPtr.withMemoryRebound(to: TAG_BINARY.self, capacity: 1) { $0.pointee }
+        guard binary.length > 0, let data = binary.data else { return nil }
+
+        let imageData = Data(bytes: data, count: Int(binary.length))
+        return convertToTIFF(imageData)
+    }
+
+    private func extractID3v2Artwork() -> Data? {
+        guard let tagPtr = BASS_ChannelGetTags(sourceStream, DWORD(BASS_TAG_ID3V2)) else { return nil }
+
+        // Get the ID3v2 tag size from header
+        let header = Data(bytes: tagPtr, count: 10)
+        guard header.count >= 10,
+              header[0] == 0x49, header[1] == 0x44, header[2] == 0x33 else { return nil } // "ID3"
+
+        let size = Int((UInt32(header[6] & 0x7F) << 21) |
+                       (UInt32(header[7] & 0x7F) << 14) |
+                       (UInt32(header[8] & 0x7F) << 7) |
+                       UInt32(header[9] & 0x7F))
+        let version = header[3]
+
+        // Read the full tag data
+        let tagData = Data(bytes: tagPtr, count: min(10 + size, 1024 * 1024)) // Cap at 1MB
+        var pos = 10
+
+        while pos + 10 < tagData.count {
+            let frameId = String(data: tagData[pos..<pos+4], encoding: .ascii) ?? ""
+            pos += 4
+
+            if frameId.isEmpty || frameId.hasPrefix("\0") { break }
+
+            let frameSize: Int
+            if version >= 4 {
+                // ID3v2.4 uses syncsafe integers for frame size
+                frameSize = Int((UInt32(tagData[pos] & 0x7F) << 21) |
+                               (UInt32(tagData[pos+1] & 0x7F) << 14) |
+                               (UInt32(tagData[pos+2] & 0x7F) << 7) |
+                               UInt32(tagData[pos+3] & 0x7F))
+            } else {
+                // ID3v2.3 uses regular integers
+                frameSize = Int((UInt32(tagData[pos]) << 24) |
+                               (UInt32(tagData[pos+1]) << 16) |
+                               (UInt32(tagData[pos+2]) << 8) |
+                               UInt32(tagData[pos+3]))
+            }
+            pos += 4 + 2 // Skip size and flags
+
+            guard frameSize > 0, pos + frameSize <= tagData.count else { break }
+
+            if frameId == "APIC" {
+                // Parse APIC frame
+                if let imageData = parseAPICFrame(Data(tagData[pos..<pos+frameSize])) {
+                    return convertToTIFF(imageData)
+                }
+            }
+
+            pos += frameSize
+        }
+
+        return nil
+    }
+
+    private func parseAPICFrame(_ frameData: Data) -> Data? {
+        guard !frameData.isEmpty else { return nil }
+        var pos = 0
+
+        // Text encoding (1 byte)
+        let encoding = frameData[pos]
+        pos += 1
+
+        // Skip MIME type (null-terminated)
+        while pos < frameData.count && frameData[pos] != 0 {
+            pos += 1
+        }
+        pos += 1 // Skip null terminator
+
+        guard pos < frameData.count else { return nil }
+
+        // Picture type (1 byte)
+        pos += 1
+
+        // Skip description (null-terminated, encoding-dependent)
+        if encoding == 0 || encoding == 3 {
+            // ISO-8859-1 or UTF-8: single null terminator
+            while pos < frameData.count && frameData[pos] != 0 {
+                pos += 1
+            }
+            pos += 1
+        } else {
+            // UTF-16: double null terminator
+            while pos + 1 < frameData.count {
+                if frameData[pos] == 0 && frameData[pos + 1] == 0 {
+                    pos += 2
+                    break
+                }
+                pos += 2
+            }
+        }
+
+        guard pos < frameData.count else { return nil }
+
+        // Remaining data is the image
+        return Data(frameData[pos...])
+    }
+
+    private func convertToTIFF(_ imageData: Data) -> Data? {
+        guard let image = NSImage(data: imageData) else { return nil }
+        return image.tiffRepresentation
     }
 
     private func parseNullTerminatedTags(_ ptr: UnsafePointer<CChar>, into tags: inout [String: String]) {

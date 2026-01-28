@@ -30,6 +30,8 @@
 		1100000000000048 /* NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000048 /* NetworkManager.swift */; };
 		1100000000000049 /* DSPCallbacks.c in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000049 /* DSPCallbacks.c */; };
 		1100000000000051 /* ConvolutionReverb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000051 /* ConvolutionReverb.swift */; };
+		1100000000000060 /* FastPlay.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 2100000000000060 /* FastPlay.sdef */; };
+		1100000000000061 /* ScriptingBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000061 /* ScriptingBridge.swift */; };
 		1100000000000012 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 2100000000000012 /* MainMenu.xib */; };
 		1100000000000013 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2100000000000013 /* libsqlite3.tbd */; };
 		1100000000000014 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2100000000000014 /* Carbon.framework */; };
@@ -73,6 +75,8 @@
 		2100000000000049 /* DSPCallbacks.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = DSPCallbacks.c; sourceTree = "<group>"; };
 		2100000000000050 /* DSPCallbacks.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DSPCallbacks.h; sourceTree = "<group>"; };
 		2100000000000051 /* ConvolutionReverb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvolutionReverb.swift; sourceTree = "<group>"; };
+		2100000000000060 /* FastPlay.sdef */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.sdef; path = FastPlay.sdef; sourceTree = "<group>"; };
+		2100000000000061 /* ScriptingBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptingBridge.swift; sourceTree = "<group>"; };
 		2100000000000012 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		2100000000000013 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		2100000000000014 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
@@ -163,6 +167,7 @@
 			children = (
 				2100000000000001 /* AppDelegate.swift */,
 				2100000000000002 /* main.swift */,
+				2100000000000061 /* ScriptingBridge.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -263,6 +268,7 @@
 				2100000000000015 /* Info.plist */,
 				2100000000000016 /* FastPlay.entitlements */,
 				2100000000000017 /* FastPlay-Bridging-Header.h */,
+				2100000000000060 /* FastPlay.sdef */,
 			);
 			path = Supporting;
 			sourceTree = "<group>";
@@ -327,6 +333,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1100000000000012 /* MainMenu.xib in Resources */,
+				1100000000000060 /* FastPlay.sdef in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -385,6 +392,7 @@
 				1100000000000048 /* NetworkManager.swift in Sources */,
 				1100000000000049 /* DSPCallbacks.c in Sources */,
 				1100000000000051 /* ConvolutionReverb.swift in Sources */,
+				1100000000000061 /* ScriptingBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

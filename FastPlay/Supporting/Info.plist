@@ -169,5 +169,11 @@
     <!-- Entitlements -->
     <key>NSAppleEventsUsageDescription</key>
     <string>FastPlay needs to control other applications for automation.</string>
+
+    <!-- AppleScript support -->
+    <key>NSAppleScriptEnabled</key>
+    <true/>
+    <key>OSAScriptingDefinition</key>
+    <string>FastPlay.sdef</string>
 </dict>
 </plist>

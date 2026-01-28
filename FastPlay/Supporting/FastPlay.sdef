@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="FastPlay Terminology">
+
+    <suite name="FastPlay Suite" code="FPly" description="FastPlay audio player scripting">
+
+        <!-- Application class -->
+        <class name="application" code="capp" description="FastPlay application">
+            <cocoa class="NSApplication"/>
+
+            <!-- Read-only properties for track metadata -->
+            <property name="track title" code="pTit" type="text" access="r"
+                description="The title of the currently playing track">
+                <cocoa key="scriptingTrackTitle"/>
+            </property>
+
+            <property name="artist" code="pArs" type="text" access="r"
+                description="The artist of the currently playing track">
+                <cocoa key="scriptingArtist"/>
+            </property>
+
+            <property name="album" code="pAlb" type="text" access="r"
+                description="The album of the currently playing track">
+                <cocoa key="scriptingAlbum"/>
+            </property>
+
+            <property name="duration" code="pDur" type="integer" access="r"
+                description="The duration of the current track in seconds">
+                <cocoa key="scriptingDuration"/>
+            </property>
+
+            <property name="artwork" code="pLgo" type="data" access="r"
+                description="The artwork of the currently playing track as TIFF data">
+                <cocoa key="scriptingArtwork"/>
+            </property>
+
+            <!-- Playback state property -->
+            <property name="player state" code="pSta" type="text" access="r"
+                description="The current playback state (playing, paused, stopped)">
+                <cocoa key="scriptingPlayerState"/>
+            </property>
+
+            <property name="player position" code="pPos" type="real" access="rw"
+                description="The current playback position in seconds">
+                <cocoa key="scriptingPlayerPosition"/>
+            </property>
+
+        </class>
+
+        <!-- Commands -->
+        <command name="playpause" code="FPlyPlPs" description="Toggle play/pause">
+            <cocoa class="PlayPauseCommand"/>
+        </command>
+
+        <command name="next track" code="FPlyNext" description="Skip to the next track">
+            <cocoa class="NextTrackCommand"/>
+        </command>
+
+        <command name="previous track" code="FPlyPrev" description="Go to the previous track">
+            <cocoa class="PreviousTrackCommand"/>
+        </command>
+
+    </suite>
+
+</dictionary>
