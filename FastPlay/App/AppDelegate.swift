@@ -231,7 +231,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
+            AudioEngine.shared.stop()
+            PlaylistManager.shared.clear()
             PlaylistManager.shared.addFolder(url.path)
+            if PlaylistManager.shared.count > 0 {
+                PlaylistManager.shared.playTrack(at: 0)
+            }
         }
     }
 

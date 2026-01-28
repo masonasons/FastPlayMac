@@ -207,7 +207,7 @@ class MainWindowController: NSWindowController {
             }
         }
 
-        // Cmd shortcuts (volume)
+        // Cmd shortcuts (volume, effect min/max)
         if hasCmd && !hasShift && !hasCtrl {
             switch event.keyCode {
             case 126:  // Cmd+Up = Volume Up
@@ -215,6 +215,12 @@ class MainWindowController: NSWindowController {
                 return true
             case 125:  // Cmd+Down = Volume Down
                 AudioEngine.shared.adjustVolume(by: -SettingsManager.shared.volumeStep)
+                return true
+            case 115:  // Cmd+Home = Effect to minimum
+                setCurrentEffectToExtreme(minimum: true)
+                return true
+            case 119:  // Cmd+End = Effect to maximum
+                setCurrentEffectToExtreme(minimum: false)
                 return true
             default:
                 break
@@ -335,6 +341,9 @@ class MainWindowController: NSWindowController {
                 return true
             case "u":
                 AudioEngine.shared.toggleMute()
+                return true
+            case "a":
+                showAudioDeviceMenu()
                 return true
             default:
                 break
@@ -646,6 +655,51 @@ class MainWindowController: NSWindowController {
         }
     }
 
+    private func setCurrentEffectToExtreme(minimum: Bool) {
+        let available = getAvailableParams()
+        if available.isEmpty { return }
+
+        // Find current param or default to first
+        let currentRaw = SettingsManager.shared.currentEffectIndex
+        let currentParam: ParamType
+        if let found = available.first(where: { $0.rawIndex == currentRaw }) {
+            currentParam = found
+        } else {
+            currentParam = available[0]
+            SettingsManager.shared.currentEffectIndex = currentParam.rawIndex
+        }
+
+        switch currentParam {
+        case .streamEffect(let idx):
+            // Block tempo/rate for live streams
+            if AudioEngine.shared.isLiveStream {
+                if idx == EffectType.tempo.rawValue || idx == EffectType.rate.rawValue {
+                    AccessibilityManager.announce("Not available for live streams")
+                    return
+                }
+            }
+
+            switch EffectType(rawValue: idx) {
+            case .volume:
+                let maxVol = SettingsManager.shared.allowAmplify ? AudioEngine.maxVolumeAmplify : AudioEngine.maxVolumeNormal
+                AudioEngine.shared.setVolume(minimum ? 0 : maxVol)
+            case .pitch:
+                AudioEngine.shared.pitchValue = minimum ? -12 : 12
+            case .tempo:
+                AudioEngine.shared.tempoValue = minimum ? -50 : 100
+            case .rate:
+                AudioEngine.shared.rateValue = minimum ? 0.5 : 2.0
+            case .none:
+                break
+            }
+            announceCurrentEffect()
+
+        case .dspParam(let paramId):
+            DSPEffectsManager.shared.setParamToExtreme(paramId, minimum: minimum)
+            // Announcement is handled by DSPEffectsManager
+        }
+    }
+
     /// Announce current effect value in Windows format
     private func announceCurrentEffect() {
         guard SettingsManager.shared.speechEffect else { return }
@@ -937,6 +991,52 @@ class MainWindowController: NSWindowController {
             if let seconds = parseTimeString(timeStr) {
                 AudioEngine.shared.seek(to: seconds)
             }
+        }
+    }
+
+    private func showAudioDeviceMenu() {
+        let devices = AudioEngine.shared.getAvailableDevices()
+        guard !devices.isEmpty else {
+            AccessibilityManager.announce("No audio devices available")
+            return
+        }
+
+        let menu = NSMenu(title: "Audio Devices")
+        let currentDevice = AudioEngine.shared.currentDeviceIndex
+
+        // Add "Default" option
+        let defaultItem = NSMenuItem(title: "Default", action: #selector(selectAudioDevice(_:)), keyEquivalent: "")
+        defaultItem.target = self
+        defaultItem.tag = -1
+        defaultItem.state = (currentDevice == -1) ? .on : .off
+        menu.addItem(defaultItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Add each device
+        for device in devices {
+            let item = NSMenuItem(title: device.name, action: #selector(selectAudioDevice(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = device.index
+            item.state = (currentDevice == device.index) ? .on : .off
+            menu.addItem(item)
+        }
+
+        // Show the menu at mouse location or window center
+        if let window = self.window {
+            let location = NSEvent.mouseLocation
+            let windowPoint = window.convertPoint(fromScreen: location)
+            menu.popUp(positioning: nil, at: windowPoint, in: window.contentView)
+        }
+    }
+
+    @objc private func selectAudioDevice(_ sender: NSMenuItem) {
+        let deviceIndex = sender.tag
+        if AudioEngine.shared.changeDevice(deviceIndex) {
+            let deviceName = deviceIndex == -1 ? "Default" : sender.title
+            AccessibilityManager.announce("Audio device: \(deviceName)")
+        } else {
+            AccessibilityManager.announce("Failed to change audio device")
         }
     }
 

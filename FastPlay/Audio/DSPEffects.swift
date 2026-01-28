@@ -260,6 +260,13 @@ class DSPEffectsManager {
         AccessibilityManager.announce("\(def.name) reset")
     }
 
+    func setParamToExtreme(_ param: DSPParamId, minimum: Bool) {
+        guard let def = DSPEffectsManager.paramDefs.first(where: { $0.id == param }) else { return }
+        let value = minimum ? def.minValue : def.maxValue
+        setParamValue(param, value: value)
+        AccessibilityManager.announce("\(def.name) \(formatValue(value, unit: def.unit))")
+    }
+
     private func formatValue(_ value: Float, unit: String) -> String {
         if unit == "%" || unit == "dB" || unit == "ms" {
             return String(format: "%.0f%@", value, unit)

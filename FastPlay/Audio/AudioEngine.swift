@@ -219,6 +219,32 @@ class AudioEngine {
         return true
     }
 
+    /// Get list of available audio output devices
+    /// Returns array of (index, name, isDefault, isEnabled) tuples
+    func getAvailableDevices() -> [(index: Int, name: String, isDefault: Bool, isEnabled: Bool)] {
+        var devices: [(index: Int, name: String, isDefault: Bool, isEnabled: Bool)] = []
+        var info = BASS_DEVICEINFO()
+        var deviceIndex: DWORD = 1  // Start at 1, 0 is "No Sound"
+
+        while BASS_GetDeviceInfo(deviceIndex, &info) != 0 {
+            let name = info.name != nil ? String(cString: info.name) : "Unknown Device"
+            let isDefault = (info.flags & DWORD(BASS_DEVICE_DEFAULT)) != 0
+            let isEnabled = (info.flags & DWORD(BASS_DEVICE_ENABLED)) != 0
+
+            if isEnabled {
+                devices.append((index: Int(deviceIndex), name: name, isDefault: isDefault, isEnabled: isEnabled))
+            }
+            deviceIndex += 1
+        }
+
+        return devices
+    }
+
+    /// Get currently selected device index
+    var currentDeviceIndex: Int {
+        return SettingsManager.shared.selectedDevice
+    }
+
     /// Load BASS plugins for additional format support
     private func loadPlugins() {
         // Get bundle's Frameworks directory
