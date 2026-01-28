@@ -8,6 +8,7 @@
 
 import AppKit
 import Accessibility
+import AVFoundation
 
 /// Manages accessibility announcements for screen reader users
 class AccessibilityManager {
@@ -15,6 +16,10 @@ class AccessibilityManager {
     // MARK: - Singleton
 
     static let shared = AccessibilityManager()
+
+    // MARK: - AVSpeechSynthesizer
+
+    private let speechSynthesizer = AVSpeechSynthesizer()
 
     private init() {}
 
@@ -26,12 +31,18 @@ class AccessibilityManager {
         shared.announce(message)
     }
 
-    /// Announce a message to VoiceOver
+    /// Announce a message to VoiceOver or AVSpeechSynthesizer
     /// - Parameter message: The message to announce
     func announce(_ message: String) {
         guard !message.isEmpty else { return }
 
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [self] in
+            // Use AVSpeechSynthesizer when app is not active and setting is enabled
+            if !NSApp.isActive && SettingsManager.shared.speechUseAVSpeech {
+                speakWithAVSpeech(message, interruptsPrevious: true)
+                return
+            }
+
             // Use macOS 14+ Accessibility framework API
             if #available(macOS 14.0, *) {
                 let announcement = AccessibilityNotification.Announcement(message)
@@ -41,6 +52,10 @@ class AccessibilityManager {
 
             // Legacy approach for older macOS
             guard let window = NSApp.mainWindow ?? NSApp.keyWindow ?? NSApp.windows.first else {
+                // Fallback to AVSpeech if no window available
+                if SettingsManager.shared.speechUseAVSpeech {
+                    speakWithAVSpeech(message, interruptsPrevious: true)
+                }
                 return
             }
 
@@ -62,7 +77,13 @@ class AccessibilityManager {
     func announceLowPriority(_ message: String) {
         guard !message.isEmpty else { return }
 
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [self] in
+            // Use AVSpeechSynthesizer when app is not active and setting is enabled
+            if !NSApp.isActive && SettingsManager.shared.speechUseAVSpeech {
+                speakWithAVSpeech(message, interruptsPrevious: false)
+                return
+            }
+
             // Use macOS 14+ Accessibility framework API
             if #available(macOS 14.0, *) {
                 let announcement = AccessibilityNotification.Announcement(message)
@@ -72,6 +93,10 @@ class AccessibilityManager {
 
             // Legacy approach for older macOS
             guard let window = NSApp.mainWindow ?? NSApp.keyWindow ?? NSApp.windows.first else {
+                // Fallback to AVSpeech if no window available
+                if SettingsManager.shared.speechUseAVSpeech {
+                    speakWithAVSpeech(message, interruptsPrevious: false)
+                }
                 return
             }
 
@@ -189,5 +214,68 @@ class AccessibilityManager {
         } else {
             return String(format: "%d:%02d", minutes, secs)
         }
+    }
+
+    // MARK: - AVSpeechSynthesizer
+
+    /// Speak using AVSpeechSynthesizer with configured voice settings
+    /// - Parameters:
+    ///   - message: Text to speak
+    ///   - interruptsPrevious: Whether to stop any current speech
+    private func speakWithAVSpeech(_ message: String, interruptsPrevious: Bool) {
+        if interruptsPrevious && speechSynthesizer.isSpeaking {
+            speechSynthesizer.stopSpeaking(at: .immediate)
+        }
+
+        let utterance = AVSpeechUtterance(string: message)
+
+        // Apply configured voice
+        let voiceId = SettingsManager.shared.speechVoiceIdentifier
+        if !voiceId.isEmpty, let voice = AVSpeechSynthesisVoice(identifier: voiceId) {
+            utterance.voice = voice
+        } else {
+            // Use default voice for current locale (compatible with macOS 12+)
+            let languageCode = Locale.current.languageCode ?? "en"
+            utterance.voice = AVSpeechSynthesisVoice(language: languageCode)
+        }
+
+        // Apply configured settings
+        utterance.rate = SettingsManager.shared.speechRate
+        utterance.pitchMultiplier = SettingsManager.shared.speechPitch
+        utterance.volume = SettingsManager.shared.speechSynthVolume
+
+        speechSynthesizer.speak(utterance)
+    }
+
+    /// Stop any current AVSpeechSynthesizer speech
+    func stopSpeaking() {
+        if speechSynthesizer.isSpeaking {
+            speechSynthesizer.stopSpeaking(at: .immediate)
+        }
+    }
+
+    // MARK: - Voice Utilities
+
+    /// Get list of available speech synthesis voices
+    /// - Returns: Array of tuples (identifier, displayName) for available voices
+    static func getAvailableVoices() -> [(identifier: String, name: String)] {
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+
+        return voices
+            .sorted { $0.name < $1.name }
+            .map { (identifier: $0.identifier, name: "\($0.name) (\($0.language))") }
+    }
+
+    /// Get the name of a voice by its identifier
+    /// - Parameter identifier: Voice identifier string
+    /// - Returns: Voice display name or "System Default" if not found
+    static func getVoiceName(for identifier: String) -> String {
+        if identifier.isEmpty {
+            return "System Default"
+        }
+        if let voice = AVSpeechSynthesisVoice(identifier: identifier) {
+            return "\(voice.name) (\(voice.language))"
+        }
+        return "Unknown Voice"
     }
 }

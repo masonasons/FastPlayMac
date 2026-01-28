@@ -124,6 +124,13 @@ class SettingsManager {
     var speechVolume: Bool = true              // (Windows: g_speechVolume = true)
     var speechEffect: Bool = true              // (Windows: g_speechEffect = true)
 
+    // AVSpeechSynthesizer settings (for when app is unfocused)
+    var speechUseAVSpeech: Bool = true         // Use AVSpeechSynthesizer when app unfocused
+    var speechVoiceIdentifier: String = ""     // Voice identifier (empty = system default)
+    var speechRate: Float = 0.5                // Rate 0.0-1.0 (0.5 = normal)
+    var speechPitch: Float = 1.0               // Pitch 0.5-2.0 (1.0 = normal)
+    var speechSynthVolume: Float = 1.0         // Volume 0.0-1.0
+
     // MARK: - Behavior Settings (matching Windows defaults)
 
     var allowAmplify: Bool = false             // (Windows: g_allowAmplify = false)
@@ -376,6 +383,11 @@ class SettingsManager {
             case "TrackChange": speechTrackChange = value == "1"
             case "Volume": speechVolume = value == "1"
             case "Effect": speechEffect = value == "1"
+            case "UseAVSpeech": speechUseAVSpeech = value == "1"
+            case "VoiceIdentifier": speechVoiceIdentifier = value
+            case "Rate": speechRate = Float(value) ?? 0.5
+            case "Pitch": speechPitch = Float(value) ?? 1.0
+            case "SynthVolume": speechSynthVolume = Float(value) ?? 1.0
             default: break
             }
 
@@ -545,6 +557,11 @@ class SettingsManager {
         content += "TrackChange=\(speechTrackChange ? 1 : 0)\n"
         content += "Volume=\(speechVolume ? 1 : 0)\n"
         content += "Effect=\(speechEffect ? 1 : 0)\n"
+        content += "UseAVSpeech=\(speechUseAVSpeech ? 1 : 0)\n"
+        content += "VoiceIdentifier=\(speechVoiceIdentifier)\n"
+        content += "Rate=\(speechRate)\n"
+        content += "Pitch=\(speechPitch)\n"
+        content += "SynthVolume=\(speechSynthVolume)\n"
         content += "\n"
 
         // Options section

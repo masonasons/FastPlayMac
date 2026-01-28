@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import AVFoundation
 import Carbon.HIToolbox
 import UniformTypeIdentifiers
 
@@ -638,11 +639,29 @@ class PreferencesWindowController: NSWindowController {
 
     // MARK: - Speech Tab
 
+    // Store references to speech controls for updating
+    private var voicePopup: NSPopUpButton?
+    private var rateSlider: NSSlider?
+    private var rateValueLabel: NSTextField?
+    private var pitchSlider: NSSlider?
+    private var pitchValueLabel: NSTextField?
+    private var speechVolumeSlider: NSSlider?
+    private var speechVolumeValueLabel: NSTextField?
+    private var testSynthesizer: AVSpeechSynthesizer?
+
     private func addSpeechTab() {
         let item = NSTabViewItem(identifier: "speech")
         item.label = "Speech"
 
         let view = NSView()
+        let leftMargin: CGFloat = 20
+        let indent: CGFloat = 40
+
+        // === Announcements Section Label ===
+        let announcementsLabel = NSTextField(labelWithString: "Announcements:")
+        announcementsLabel.translatesAutoresizingMaskIntoConstraints = false
+        announcementsLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        view.addSubview(announcementsLabel)
 
         // Announce track changes
         let trackCheck = NSButton(checkboxWithTitle: "Announce track changes",
@@ -665,19 +684,222 @@ class PreferencesWindowController: NSWindowController {
         effectCheck.state = SettingsManager.shared.speechEffect ? .on : .off
         view.addSubview(effectCheck)
 
+        // === Speech Synthesizer Section Label ===
+        let synthLabel = NSTextField(labelWithString: "Speech Synthesizer (when app unfocused):")
+        synthLabel.translatesAutoresizingMaskIntoConstraints = false
+        synthLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        view.addSubview(synthLabel)
+
+        // Enable AVSpeech checkbox
+        let avSpeechCheck = NSButton(checkboxWithTitle: "Use speech synthesizer when app is in background",
+                                      target: self, action: #selector(useAVSpeechChanged(_:)))
+        avSpeechCheck.translatesAutoresizingMaskIntoConstraints = false
+        avSpeechCheck.state = SettingsManager.shared.speechUseAVSpeech ? .on : .off
+        view.addSubview(avSpeechCheck)
+
+        // Voice selection
+        let voiceLabel = NSTextField(labelWithString: "Voice:")
+        voiceLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(voiceLabel)
+
+        let voiceCombo = NSPopUpButton(frame: .zero, pullsDown: false)
+        voiceCombo.translatesAutoresizingMaskIntoConstraints = false
+        populateVoices(voiceCombo)
+        voiceCombo.target = self
+        voiceCombo.action = #selector(voiceChanged(_:))
+        view.addSubview(voiceCombo)
+        self.voicePopup = voiceCombo
+
+        // Speech Rate slider
+        let rateLabel = NSTextField(labelWithString: "Rate:")
+        rateLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(rateLabel)
+
+        let rateSlider = NSSlider(value: Double(SettingsManager.shared.speechRate),
+                                   minValue: 0.0, maxValue: 1.0,
+                                   target: self, action: #selector(speechRateChanged(_:)))
+        rateSlider.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(rateSlider)
+        self.rateSlider = rateSlider
+
+        let rateValue = NSTextField(labelWithString: formatSpeechRate(SettingsManager.shared.speechRate))
+        rateValue.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(rateValue)
+        self.rateValueLabel = rateValue
+
+        // Speech Pitch slider
+        let pitchLabel = NSTextField(labelWithString: "Pitch:")
+        pitchLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pitchLabel)
+
+        let pitchSlider = NSSlider(value: Double(SettingsManager.shared.speechPitch),
+                                    minValue: 0.5, maxValue: 2.0,
+                                    target: self, action: #selector(speechPitchChanged(_:)))
+        pitchSlider.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pitchSlider)
+        self.pitchSlider = pitchSlider
+
+        let pitchValue = NSTextField(labelWithString: formatSpeechPitch(SettingsManager.shared.speechPitch))
+        pitchValue.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pitchValue)
+        self.pitchValueLabel = pitchValue
+
+        // Speech Volume slider
+        let speechVolLabel = NSTextField(labelWithString: "Volume:")
+        speechVolLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(speechVolLabel)
+
+        let speechVolSlider = NSSlider(value: Double(SettingsManager.shared.speechSynthVolume),
+                                        minValue: 0.0, maxValue: 1.0,
+                                        target: self, action: #selector(speechVolumeSliderChanged(_:)))
+        speechVolSlider.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(speechVolSlider)
+        self.speechVolumeSlider = speechVolSlider
+
+        let speechVolValue = NSTextField(labelWithString: "\(Int(SettingsManager.shared.speechSynthVolume * 100))%")
+        speechVolValue.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(speechVolValue)
+        self.speechVolumeValueLabel = speechVolValue
+
+        // Test button
+        let testButton = NSButton(title: "Test Voice", target: self, action: #selector(testVoice(_:)))
+        testButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(testButton)
+
+        // Help text
+        let helpLabel = NSTextField(wrappingLabelWithString: "When FastPlay is in the background, VoiceOver announcements may not be heard. Enable the speech synthesizer to hear announcements even when the app is unfocused.")
+        helpLabel.translatesAutoresizingMaskIntoConstraints = false
+        helpLabel.font = NSFont.systemFont(ofSize: 11)
+        helpLabel.textColor = .secondaryLabelColor
+        view.addSubview(helpLabel)
+
         NSLayoutConstraint.activate([
-            trackCheck.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
-            trackCheck.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            // Announcements section
+            announcementsLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 15),
+            announcementsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: leftMargin),
 
-            volCheck.topAnchor.constraint(equalTo: trackCheck.bottomAnchor, constant: 10),
-            volCheck.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            trackCheck.topAnchor.constraint(equalTo: announcementsLabel.bottomAnchor, constant: 10),
+            trackCheck.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
 
-            effectCheck.topAnchor.constraint(equalTo: volCheck.bottomAnchor, constant: 10),
-            effectCheck.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            volCheck.topAnchor.constraint(equalTo: trackCheck.bottomAnchor, constant: 5),
+            volCheck.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+
+            effectCheck.topAnchor.constraint(equalTo: volCheck.bottomAnchor, constant: 5),
+            effectCheck.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+
+            // Speech Synthesizer section
+            synthLabel.topAnchor.constraint(equalTo: effectCheck.bottomAnchor, constant: 25),
+            synthLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: leftMargin),
+
+            avSpeechCheck.topAnchor.constraint(equalTo: synthLabel.bottomAnchor, constant: 10),
+            avSpeechCheck.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+
+            // Voice row
+            voiceLabel.topAnchor.constraint(equalTo: avSpeechCheck.bottomAnchor, constant: 15),
+            voiceLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+            voiceLabel.widthAnchor.constraint(equalToConstant: 50),
+            voiceCombo.centerYAnchor.constraint(equalTo: voiceLabel.centerYAnchor),
+            voiceCombo.leadingAnchor.constraint(equalTo: voiceLabel.trailingAnchor, constant: 10),
+            voiceCombo.widthAnchor.constraint(equalToConstant: 250),
+
+            // Rate row
+            rateLabel.topAnchor.constraint(equalTo: voiceLabel.bottomAnchor, constant: 15),
+            rateLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+            rateLabel.widthAnchor.constraint(equalToConstant: 50),
+            rateSlider.centerYAnchor.constraint(equalTo: rateLabel.centerYAnchor),
+            rateSlider.leadingAnchor.constraint(equalTo: rateLabel.trailingAnchor, constant: 10),
+            rateSlider.widthAnchor.constraint(equalToConstant: 150),
+            rateValue.centerYAnchor.constraint(equalTo: rateSlider.centerYAnchor),
+            rateValue.leadingAnchor.constraint(equalTo: rateSlider.trailingAnchor, constant: 10),
+            rateValue.widthAnchor.constraint(equalToConstant: 60),
+
+            // Pitch row
+            pitchLabel.topAnchor.constraint(equalTo: rateLabel.bottomAnchor, constant: 15),
+            pitchLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+            pitchLabel.widthAnchor.constraint(equalToConstant: 50),
+            pitchSlider.centerYAnchor.constraint(equalTo: pitchLabel.centerYAnchor),
+            pitchSlider.leadingAnchor.constraint(equalTo: pitchLabel.trailingAnchor, constant: 10),
+            pitchSlider.widthAnchor.constraint(equalToConstant: 150),
+            pitchValue.centerYAnchor.constraint(equalTo: pitchSlider.centerYAnchor),
+            pitchValue.leadingAnchor.constraint(equalTo: pitchSlider.trailingAnchor, constant: 10),
+            pitchValue.widthAnchor.constraint(equalToConstant: 60),
+
+            // Volume row
+            speechVolLabel.topAnchor.constraint(equalTo: pitchLabel.bottomAnchor, constant: 15),
+            speechVolLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+            speechVolLabel.widthAnchor.constraint(equalToConstant: 50),
+            speechVolSlider.centerYAnchor.constraint(equalTo: speechVolLabel.centerYAnchor),
+            speechVolSlider.leadingAnchor.constraint(equalTo: speechVolLabel.trailingAnchor, constant: 10),
+            speechVolSlider.widthAnchor.constraint(equalToConstant: 150),
+            speechVolValue.centerYAnchor.constraint(equalTo: speechVolSlider.centerYAnchor),
+            speechVolValue.leadingAnchor.constraint(equalTo: speechVolSlider.trailingAnchor, constant: 10),
+            speechVolValue.widthAnchor.constraint(equalToConstant: 60),
+
+            // Test button
+            testButton.topAnchor.constraint(equalTo: speechVolLabel.bottomAnchor, constant: 20),
+            testButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: indent),
+
+            // Help text
+            helpLabel.topAnchor.constraint(equalTo: testButton.bottomAnchor, constant: 20),
+            helpLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: leftMargin),
+            helpLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -leftMargin),
         ])
 
         item.view = view
         tabView.addTabViewItem(item)
+    }
+
+    // MARK: - Speech Tab Helpers
+
+    private func populateVoices(_ combo: NSPopUpButton) {
+        combo.removeAllItems()
+
+        // Add system default option
+        combo.addItem(withTitle: "System Default")
+        combo.item(at: 0)?.representedObject = ""
+
+        // Get available voices
+        let voices = AccessibilityManager.getAvailableVoices()
+
+        for voice in voices {
+            combo.addItem(withTitle: voice.name)
+            combo.lastItem?.representedObject = voice.identifier
+        }
+
+        // Select current voice
+        let currentId = SettingsManager.shared.speechVoiceIdentifier
+        if currentId.isEmpty {
+            combo.selectItem(at: 0)
+        } else if let index = voices.firstIndex(where: { $0.identifier == currentId }) {
+            combo.selectItem(at: index + 1)  // +1 for "System Default"
+        } else {
+            combo.selectItem(at: 0)
+        }
+    }
+
+    private func formatSpeechRate(_ rate: Float) -> String {
+        if rate < 0.25 {
+            return "Slow"
+        } else if rate < 0.45 {
+            return "Slower"
+        } else if rate < 0.55 {
+            return "Normal"
+        } else if rate < 0.75 {
+            return "Faster"
+        } else {
+            return "Fast"
+        }
+    }
+
+    private func formatSpeechPitch(_ pitch: Float) -> String {
+        let percent = Int((pitch - 1.0) * 100)
+        if percent == 0 {
+            return "Normal"
+        } else if percent > 0 {
+            return "+\(percent)%"
+        } else {
+            return "\(percent)%"
+        }
     }
 
     // MARK: - Movement Tab
@@ -1242,6 +1464,53 @@ class PreferencesWindowController: NSWindowController {
 
     @objc private func speakEffectChanged(_ sender: NSButton) {
         SettingsManager.shared.speechEffect = sender.state == .on
+    }
+
+    @objc private func useAVSpeechChanged(_ sender: NSButton) {
+        SettingsManager.shared.speechUseAVSpeech = sender.state == .on
+    }
+
+    @objc private func voiceChanged(_ sender: NSPopUpButton) {
+        if let identifier = sender.selectedItem?.representedObject as? String {
+            SettingsManager.shared.speechVoiceIdentifier = identifier
+        }
+    }
+
+    @objc private func speechRateChanged(_ sender: NSSlider) {
+        let value = Float(sender.doubleValue)
+        SettingsManager.shared.speechRate = value
+        rateValueLabel?.stringValue = formatSpeechRate(value)
+    }
+
+    @objc private func speechPitchChanged(_ sender: NSSlider) {
+        let value = Float(sender.doubleValue)
+        SettingsManager.shared.speechPitch = value
+        pitchValueLabel?.stringValue = formatSpeechPitch(value)
+    }
+
+    @objc private func speechVolumeSliderChanged(_ sender: NSSlider) {
+        let value = Float(sender.doubleValue)
+        SettingsManager.shared.speechSynthVolume = value
+        speechVolumeValueLabel?.stringValue = "\(Int(value * 100))%"
+    }
+
+    @objc private func testVoice(_ sender: NSButton) {
+        let testMessage = "This is a test of the speech synthesizer settings."
+
+        let utterance = AVSpeechUtterance(string: testMessage)
+
+        let voiceId = SettingsManager.shared.speechVoiceIdentifier
+        if !voiceId.isEmpty, let voice = AVSpeechSynthesisVoice(identifier: voiceId) {
+            utterance.voice = voice
+        }
+
+        utterance.rate = SettingsManager.shared.speechRate
+        utterance.pitchMultiplier = SettingsManager.shared.speechPitch
+        utterance.volume = SettingsManager.shared.speechSynthVolume
+
+        // Store synthesizer as instance variable to prevent deallocation during speech
+        testSynthesizer = AVSpeechSynthesizer()
+        testSynthesizer?.speak(utterance)
     }
 
     @objc private func seekAmountChanged(_ sender: NSButton) {
