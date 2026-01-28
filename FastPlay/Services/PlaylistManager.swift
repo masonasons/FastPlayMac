@@ -72,6 +72,18 @@ class PlaylistManager {
 
     /// Add a single file to the playlist
     func addFile(_ path: String) {
+        let ext = (path as NSString).pathExtension.lowercased()
+
+        // Handle playlist files
+        if ext == "m3u" || ext == "m3u8" {
+            addM3U(path)
+            return
+        }
+        if ext == "pls" {
+            addPLS(path)
+            return
+        }
+
         tracks.append(path)
         updateShuffleOrder()
     }

@@ -127,6 +127,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Clear playlist and add all files
         PlaylistManager.shared.clear()
 
+        // Check if opening a single playlist file (M3U/PLS) - handle specially
+        let playlistExtensions = ["m3u", "m3u8", "pls"]
+        if urls.count == 1 && urls[0].isFileURL {
+            let ext = urls[0].pathExtension.lowercased()
+            if playlistExtensions.contains(ext) {
+                // Parse the playlist file directly
+                PlaylistManager.shared.addFile(urls[0].path)
+                if PlaylistManager.shared.count > 0 {
+                    PlaylistManager.shared.playTrack(at: 0)
+                }
+                return
+            }
+        }
+
         // Check if we should load entire folder when opening a single file
         if urls.count == 1 && urls[0].isFileURL && SettingsManager.shared.loadFolder {
             let fileURL = urls[0]
