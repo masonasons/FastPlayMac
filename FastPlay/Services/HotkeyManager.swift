@@ -463,15 +463,14 @@ class HotkeyManager {
             return
         }
 
-        // Cycle through available amounts
+        // Move through available amounts (no wrapping)
         let direction = forward ? 1 : -1
         var newIndex = settings.currentSeekIndex
         for _ in 0..<seekAmountTotal {
             newIndex += direction
-            if newIndex >= seekAmountTotal {
-                newIndex = 0
-            } else if newIndex < 0 {
-                newIndex = seekAmountTotal - 1
+            // Stop at boundaries instead of wrapping
+            if newIndex >= seekAmountTotal || newIndex < 0 {
+                break
             }
 
             if settings.isSeekAmountAvailable(newIndex) {

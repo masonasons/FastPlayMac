@@ -173,11 +173,23 @@ class RecordingManager {
         // Use template from settings, defaulting to timestamp format
         var template = SettingsManager.shared.recordTemplate
         if template.isEmpty {
-            template = "yyyy-MM-dd_HH-mm-ss"
+            template = "%Y-%m-%d_%H-%M-%S"
         }
 
+        // Convert strftime format (Windows) to DateFormatter format (macOS)
+        let converted = template
+            .replacingOccurrences(of: "%Y", with: "yyyy")  // 4-digit year
+            .replacingOccurrences(of: "%y", with: "yy")    // 2-digit year
+            .replacingOccurrences(of: "%m", with: "MM")    // month
+            .replacingOccurrences(of: "%d", with: "dd")    // day
+            .replacingOccurrences(of: "%H", with: "HH")    // 24-hour
+            .replacingOccurrences(of: "%I", with: "hh")    // 12-hour
+            .replacingOccurrences(of: "%M", with: "mm")    // minute
+            .replacingOccurrences(of: "%S", with: "ss")    // second
+            .replacingOccurrences(of: "%p", with: "a")     // AM/PM
+
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = template
+        dateFormatter.dateFormat = converted
         return dateFormatter.string(from: Date())
     }
 
