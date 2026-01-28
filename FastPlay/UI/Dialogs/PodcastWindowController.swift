@@ -507,78 +507,10 @@ class PodcastWindowController: NSWindowController {
 
     /// Parse OPML file and extract feed URLs with titles
     private func parseOPML(_ content: String) -> [(title: String, url: String)] {
-        var feeds: [(title: String, url: String)] = []
+        guard let data = content.data(using: .utf8) else { return [] }
 
-        // Find all <outline elements with xmlUrl attribute
-        var searchRange = content.startIndex..<content.endIndex
-        while let outlineStart = content.range(of: "<outline", options: .caseInsensitive, range: searchRange) {
-            // Find the end of this element (either /> or </outline>)
-            guard let elementEnd = content.range(of: "/>", range: outlineStart.upperBound..<content.endIndex) ??
-                                   content.range(of: ">", range: outlineStart.upperBound..<content.endIndex) else {
-                break
-            }
-
-            let element = String(content[outlineStart.lowerBound..<elementEnd.upperBound])
-
-            // Extract xmlUrl (case insensitive)
-            let feedUrl = extractXMLAttribute(element, "xmlUrl") ?? extractXMLAttribute(element, "xmlurl") ?? ""
-
-            if !feedUrl.isEmpty {
-                // Extract title from text or title attribute
-                let title = extractXMLAttribute(element, "text") ?? extractXMLAttribute(element, "title") ?? ""
-
-                // Decode HTML entities in title
-                let decodedTitle = title
-                    .replacingOccurrences(of: "&amp;", with: "&")
-                    .replacingOccurrences(of: "&apos;", with: "'")
-                    .replacingOccurrences(of: "&quot;", with: "\"")
-                    .replacingOccurrences(of: "&#39;", with: "'")
-                    .replacingOccurrences(of: "&lt;", with: "<")
-                    .replacingOccurrences(of: "&gt;", with: ">")
-
-                // Decode URL entities
-                let decodedUrl = feedUrl
-                    .replacingOccurrences(of: "&amp;", with: "&")
-
-                feeds.append((title: decodedTitle.isEmpty ? "Unknown Podcast" : decodedTitle, url: decodedUrl))
-            }
-
-            searchRange = elementEnd.upperBound..<content.endIndex
-        }
-
-        return feeds
-    }
-
-    /// Extract XML attribute value (case insensitive for attribute name)
-    private func extractXMLAttribute(_ element: String, _ attr: String) -> String? {
-        // Try double quotes
-        let patterns = [
-            "\(attr)=\"",
-            "\(attr.lowercased())=\"",
-            "\(attr.uppercased())=\""
-        ]
-
-        for pattern in patterns {
-            if let range = element.range(of: pattern, options: .caseInsensitive) {
-                let start = range.upperBound
-                if let end = element.range(of: "\"", range: start..<element.endIndex) {
-                    return String(element[start..<end.lowerBound])
-                }
-            }
-        }
-
-        // Try single quotes
-        for pattern in patterns {
-            let singleQuotePattern = pattern.replacingOccurrences(of: "\"", with: "'")
-            if let range = element.range(of: singleQuotePattern, options: .caseInsensitive) {
-                let start = range.upperBound
-                if let end = element.range(of: "'", range: start..<element.endIndex) {
-                    return String(element[start..<end.lowerBound])
-                }
-            }
-        }
-
-        return nil
+        let parser = OPMLParser()
+        return parser.parse(data: data)
     }
 
     private func handleKeyDown(_ event: NSEvent) -> Bool {
@@ -765,5 +697,69 @@ extension PodcastWindowController: NSTableViewDataSource, NSTableViewDelegate {
                 descriptionText.string = episodes[row].description
             }
         }
+    }
+}
+
+// MARK: - OPML Parser
+
+private class OPMLParser: NSObject, XMLParserDelegate {
+
+    private var feeds: [(title: String, url: String)] = []
+
+    func parse(data: Data) -> [(title: String, url: String)] {
+        feeds = []
+        let parser = XMLParser(data: data)
+        parser.delegate = self
+        parser.parse()
+        return feeds
+    }
+
+    // MARK: - XMLParserDelegate
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
+        // Only care about outline elements
+        guard elementName.lowercased() == "outline" else { return }
+
+        // Look for xmlUrl attribute (case insensitive)
+        var feedUrl: String?
+        var title: String?
+
+        for (key, value) in attributeDict {
+            let lowercaseKey = key.lowercased()
+            if lowercaseKey == "xmlurl" {
+                feedUrl = value
+            } else if lowercaseKey == "text" && title == nil {
+                title = value
+            } else if lowercaseKey == "title" {
+                title = value  // title attribute takes precedence over text
+            }
+        }
+
+        // Only add if we have a feed URL
+        if let url = feedUrl, !url.isEmpty {
+            let feedTitle = decodeHTMLEntities(title ?? "Unknown Podcast")
+            let decodedUrl = url.replacingOccurrences(of: "&amp;", with: "&")
+            feeds.append((title: feedTitle, url: decodedUrl))
+        }
+    }
+
+    private func decodeHTMLEntities(_ string: String) -> String {
+        var result = string
+        let entities: [String: String] = [
+            "&amp;": "&",
+            "&lt;": "<",
+            "&gt;": ">",
+            "&quot;": "\"",
+            "&apos;": "'",
+            "&#39;": "'",
+            "&#x27;": "'",
+            "&#039;": "'",
+        ]
+
+        for (entity, char) in entities {
+            result = result.replacingOccurrences(of: entity, with: char)
+        }
+
+        return result
     }
 }
