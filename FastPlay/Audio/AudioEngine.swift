@@ -560,26 +560,41 @@ class AudioEngine {
     private func parseID3v2Chapters() {
         guard let tagPtr = BASS_ChannelGetTags(sourceStream, DWORD(BASS_TAG_ID3V2)) else { return }
 
-        let data = Data(bytes: tagPtr, count: 10240)  // Read up to 10KB of ID3 data
-        guard data.count >= 10 else { return }
+        // First, read just the header to get actual tag size
+        let headerData = Data(bytes: tagPtr, count: 10)
+        guard headerData.count >= 10 else { return }
 
         // Check ID3v2 header
-        guard data[0] == 0x49 && data[1] == 0x44 && data[2] == 0x33 else { return }  // "ID3"
+        guard headerData[0] == 0x49 && headerData[1] == 0x44 && headerData[2] == 0x33 else { return }  // "ID3"
 
-        let version = data[3]
+        let version = headerData[3]
         guard version >= 3 else { return }  // Need ID3v2.3 or higher for CHAP
 
         // Parse size (synchsafe integer)
-        let size = Int((UInt32(data[6]) << 21) | (UInt32(data[7]) << 14) | (UInt32(data[8]) << 7) | UInt32(data[9]))
-        let endPos = min(10 + size, data.count)
+        let tagSize = Int((UInt32(headerData[6]) << 21) | (UInt32(headerData[7]) << 14) | (UInt32(headerData[8]) << 7) | UInt32(headerData[9]))
+
+        // Sanity check: tag size should be reasonable (max 16MB)
+        guard tagSize > 0 && tagSize < 16 * 1024 * 1024 else { return }
+
+        // Now read the actual tag data (header + content)
+        let totalSize = 10 + tagSize
+        let data = Data(bytes: tagPtr, count: totalSize)
+        guard data.count >= totalSize else { return }
+
+        let endPos = totalSize
 
         var pos = 10
-        while pos + 10 < endPos {
+        while pos + 10 <= endPos {
+            // Check for padding (zeros)
+            if data[pos] == 0 { break }
+
             // Frame ID (4 bytes)
+            guard pos + 4 <= endPos else { break }
             let frameId = String(data: data[pos..<pos+4], encoding: .ascii) ?? ""
             pos += 4
 
             // Frame size (4 bytes, synchsafe in v2.4, normal in v2.3)
+            guard pos + 4 <= endPos else { break }
             let frameSize: Int
             if version >= 4 {
                 frameSize = Int((UInt32(data[pos]) << 21) | (UInt32(data[pos+1]) << 14) | (UInt32(data[pos+2]) << 7) | UInt32(data[pos+3]))
@@ -589,11 +604,14 @@ class AudioEngine {
             pos += 4
 
             // Frame flags (2 bytes)
+            guard pos + 2 <= endPos else { break }
             pos += 2
 
-            guard frameSize > 0 && pos + frameSize <= endPos else { break }
+            // Sanity check frame size
+            guard frameSize >= 0 && frameSize < 16 * 1024 * 1024 else { break }
+            guard pos + frameSize <= endPos else { break }
 
-            if frameId == "CHAP" {
+            if frameId == "CHAP" && frameSize > 0 {
                 // Parse CHAP frame
                 let frameData = data[pos..<pos+frameSize]
                 parseID3ChapFrame(frameData)
@@ -610,19 +628,21 @@ class AudioEngine {
     private func parseID3ChapFrame(_ frameData: Data) {
         guard frameData.count > 16 else { return }
 
+        // Use array for safer access
+        let bytes = Array(frameData)
         var pos = 0
 
         // Element ID (null-terminated string)
         var elemIdLen = 0
-        while pos + elemIdLen < frameData.count && frameData[pos + elemIdLen] != 0 {
+        while pos + elemIdLen < bytes.count && bytes[pos + elemIdLen] != 0 {
             elemIdLen += 1
         }
         pos += elemIdLen + 1  // Skip ID and null terminator
 
-        guard pos + 16 <= frameData.count else { return }
+        guard pos + 16 <= bytes.count else { return }
 
         // Start time (4 bytes, milliseconds)
-        let startMs = (UInt32(frameData[pos]) << 24) | (UInt32(frameData[pos+1]) << 16) | (UInt32(frameData[pos+2]) << 8) | UInt32(frameData[pos+3])
+        let startMs = (UInt32(bytes[pos]) << 24) | (UInt32(bytes[pos+1]) << 16) | (UInt32(bytes[pos+2]) << 8) | UInt32(bytes[pos+3])
         pos += 4
 
         // End time (4 bytes, skip)
@@ -638,22 +658,31 @@ class AudioEngine {
         var chapterName = ""
 
         // Look for TIT2 sub-frame (chapter title)
-        while pos + 10 < frameData.count {
-            let subFrameId = String(data: frameData[pos..<pos+4], encoding: .ascii) ?? ""
+        while pos + 10 <= bytes.count {
+            // Check for valid frame ID (should be ASCII letters/numbers)
+            guard bytes[pos] >= 0x20 && bytes[pos] <= 0x7E else { break }
+
+            guard pos + 4 <= bytes.count else { break }
+            let subFrameId = String(bytes: bytes[pos..<pos+4], encoding: .ascii) ?? ""
             pos += 4
 
-            let subFrameSize = Int((UInt32(frameData[pos]) << 24) | (UInt32(frameData[pos+1]) << 16) | (UInt32(frameData[pos+2]) << 8) | UInt32(frameData[pos+3]))
+            guard pos + 4 <= bytes.count else { break }
+            let subFrameSize = Int((UInt32(bytes[pos]) << 24) | (UInt32(bytes[pos+1]) << 16) | (UInt32(bytes[pos+2]) << 8) | UInt32(bytes[pos+3]))
             pos += 4
 
             // Skip flags
+            guard pos + 2 <= bytes.count else { break }
             pos += 2
 
-            guard subFrameSize > 0 && pos + subFrameSize <= frameData.count else { break }
+            // Sanity check frame size
+            guard subFrameSize > 0 && subFrameSize < bytes.count else { break }
+            guard pos + subFrameSize <= bytes.count else { break }
 
-            if subFrameId == "TIT2" {
+            if subFrameId == "TIT2" && subFrameSize > 1 {
                 // Text frame - first byte is encoding
-                let encoding = frameData[pos]
-                let textData = frameData[(pos+1)..<(pos+subFrameSize)]
+                let encoding = bytes[pos]
+                let textBytes = Array(bytes[(pos+1)..<(pos+subFrameSize)])
+                let textData = Data(textBytes)
 
                 // Decode based on encoding
                 if encoding == 0 {
