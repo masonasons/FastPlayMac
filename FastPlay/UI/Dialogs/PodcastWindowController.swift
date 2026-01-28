@@ -42,6 +42,13 @@ class PodcastWindowController: NSWindowController {
 
         self.init(window: window)
         setupUI()
+        setupDownloadManager()
+    }
+
+    private func setupDownloadManager() {
+        DownloadManager.shared.onAllDownloadsComplete = {
+            AccessibilityManager.announce("All downloads complete")
+        }
     }
 
     private func setupUI() {
@@ -301,7 +308,11 @@ class PodcastWindowController: NSWindowController {
         let row = episodesTable.selectedRow
         guard row >= 0 && row < episodes.count else { return }
 
-        downloadEpisode(episodes[row])
+        let episode = episodes[row]
+        if let item = makeDownloadItem(for: episode) {
+            AccessibilityManager.announce("Queued: \(episode.title)")
+            DownloadManager.shared.enqueue(url: item.url, destinationPath: item.destinationPath, title: item.title)
+        }
     }
 
     @objc private func downloadAll() {
@@ -310,25 +321,24 @@ class PodcastWindowController: NSWindowController {
             return
         }
 
-        // Count episodes to download (excluding already downloaded)
-        let toDownload = episodes.filter { episode in
-            guard let localPath = episode.localPath else { return true }
-            return !FileManager.default.fileExists(atPath: localPath)
+        // Build list of downloads
+        var items: [(url: String, destinationPath: String, title: String)] = []
+        for episode in episodes {
+            if let item = makeDownloadItem(for: episode) {
+                items.append(item)
+            }
         }
 
-        guard !toDownload.isEmpty else {
+        guard !items.isEmpty else {
             AccessibilityManager.announce("All episodes already downloaded")
             return
         }
 
-        AccessibilityManager.announce("Downloading \(toDownload.count) episodes")
-
-        for episode in toDownload {
-            downloadEpisode(episode, silent: true)
-        }
+        AccessibilityManager.announce("Queued \(items.count) episodes for download")
+        DownloadManager.shared.enqueueMultiple(items)
     }
 
-    private func downloadEpisode(_ episode: PodcastEpisode, silent: Bool = false) {
+    private func makeDownloadItem(for episode: PodcastEpisode) -> (url: String, destinationPath: String, title: String)? {
         // Get download path
         var downloadDir = SettingsManager.shared.downloadPath
         if downloadDir.isEmpty {
@@ -350,29 +360,10 @@ class PodcastWindowController: NSWindowController {
 
         // Check for existing file
         if FileManager.default.fileExists(atPath: localPath) {
-            if !silent {
-                AccessibilityManager.announce("Already downloaded: \(episode.title)")
-            }
-            return
+            return nil
         }
 
-        if !silent {
-            AccessibilityManager.announce("Downloading: \(episode.title)")
-        }
-
-        NetworkManager.shared.downloadFile(from: episode.audioURL, to: localPath, progress: nil) { result in
-            switch result {
-            case .success:
-                if !silent {
-                    AccessibilityManager.announce("Downloaded: \(episode.title)")
-                }
-
-            case .failure(let error):
-                if !silent {
-                    AccessibilityManager.announce("Download failed: \(error.localizedDescription)")
-                }
-            }
-        }
+        return (url: episode.audioURL, destinationPath: localPath, title: episode.title)
     }
 
     private func sanitizeFilename(_ name: String) -> String {
