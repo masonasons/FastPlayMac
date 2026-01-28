@@ -17,6 +17,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Timer for UI updates
     private var updateTimer: Timer?
 
+    // Track launch state for deferred file opening
+    private var isLaunchComplete = false
+    private var pendingURLs: [URL] = []
+
     // MARK: - Application Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -54,8 +58,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.mainWindowController?.updateUI()
         }
 
-        // Restore playback state if enabled
-        if SettingsManager.shared.rememberState {
+        // Mark launch complete
+        isLaunchComplete = true
+
+        // Process any files that were queued during launch
+        if !pendingURLs.isEmpty {
+            handleOpenURLs(pendingURLs)
+            pendingURLs.removeAll()
+        } else if SettingsManager.shared.rememberState {
+            // Only restore playback state if no files were opened
             if let state = SettingsManager.shared.restorePlaybackState() {
                 PlaylistManager.shared.addFile(state.path)
                 if PlaylistManager.shared.count > 0 {
@@ -68,8 +79,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
-
-        // Files passed on launch are handled by application(_:openFiles:)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -113,18 +122,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
         let urls = filenames.map { URL(fileURLWithPath: $0) }
-        handleOpenURLs(urls)
+        if isLaunchComplete {
+            handleOpenURLs(urls)
+        } else {
+            // Queue for processing after launch completes
+            pendingURLs.append(contentsOf: urls)
+        }
         sender.reply(toOpenOrPrint: .success)
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        handleOpenURLs(urls)
+        if isLaunchComplete {
+            handleOpenURLs(urls)
+        } else {
+            // Queue for processing after launch completes
+            pendingURLs.append(contentsOf: urls)
+        }
     }
 
     private func handleOpenURLs(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
 
-        // Clear playlist and add all files
+        // Stop current playback and clear playlist
+        AudioEngine.shared.stop()
         PlaylistManager.shared.clear()
 
         // Check if opening a single playlist file (M3U/PLS) - handle specially
