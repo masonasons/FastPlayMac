@@ -1000,10 +1000,14 @@ class AudioEngine {
         // Calculate tag size (syncsafe integer: 4 bytes, 7 bits each)
         let size = (Int(header[6]) << 21) | (Int(header[7]) << 14) | (Int(header[8]) << 7) | Int(header[9])
 
+        // Sanity check: tag size should be reasonable (max 256MB)
+        guard size > 0 && size < 256 * 1024 * 1024 else { return }
+
         var offset = 10  // Skip header
 
         // Skip extended header if present
         if (flags & 0x40) != 0 {
+            guard offset + 4 <= size + 10 else { return }
             let extSize = (Int(header[10]) << 21) | (Int(header[11]) << 14) | (Int(header[12]) << 7) | Int(header[13])
             offset += 4 + extSize
         }
@@ -1021,7 +1025,7 @@ class AudioEngine {
         ]
 
         // Parse frames
-        while offset < size + 10 {
+        while offset + 10 <= size + 10 {
             // Read frame ID (4 bytes)
             let framePtr = data.advanced(by: offset).assumingMemoryBound(to: UInt8.self)
 
@@ -1044,6 +1048,10 @@ class AudioEngine {
             _ = frameFlags  // Unused for now
 
             offset += 10  // Skip frame header
+
+            // Sanity check frame size (prevent buffer overflow)
+            guard frameSize >= 0 && frameSize < 16 * 1024 * 1024 else { break }
+            guard offset + frameSize <= size + 10 else { break }
 
             // Only process text frames we care about
             if let tagName = frameMap[frameId], frameSize > 0 {
