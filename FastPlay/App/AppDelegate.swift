@@ -195,7 +195,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        panel.allowedContentTypes = AudioEngine.supportedFileTypes
+        panel.allowedContentTypes = AudioEngine.supportedFileTypes + AudioEngine.supportedPlaylistTypes
 
         panel.begin { [weak self] response in
             guard response == .OK else { return }
