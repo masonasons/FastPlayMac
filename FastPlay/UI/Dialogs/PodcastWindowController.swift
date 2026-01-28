@@ -310,18 +310,25 @@ class PodcastWindowController: NSWindowController {
             return
         }
 
-        AccessibilityManager.announce("Starting download of \(episodes.count) episodes")
+        // Count episodes to download (excluding already downloaded)
+        let toDownload = episodes.filter { episode in
+            guard let localPath = episode.localPath else { return true }
+            return !FileManager.default.fileExists(atPath: localPath)
+        }
 
-        for episode in episodes {
-            // Skip already downloaded
-            if episode.localPath != nil && FileManager.default.fileExists(atPath: episode.localPath ?? "") {
-                continue
-            }
-            downloadEpisode(episode)
+        guard !toDownload.isEmpty else {
+            AccessibilityManager.announce("All episodes already downloaded")
+            return
+        }
+
+        AccessibilityManager.announce("Downloading \(toDownload.count) episodes")
+
+        for episode in toDownload {
+            downloadEpisode(episode, silent: true)
         }
     }
 
-    private func downloadEpisode(_ episode: PodcastEpisode) {
+    private func downloadEpisode(_ episode: PodcastEpisode, silent: Bool = false) {
         // Get download path
         var downloadDir = SettingsManager.shared.downloadPath
         if downloadDir.isEmpty {
@@ -343,19 +350,27 @@ class PodcastWindowController: NSWindowController {
 
         // Check for existing file
         if FileManager.default.fileExists(atPath: localPath) {
-            AccessibilityManager.announce("Already downloaded: \(episode.title)")
+            if !silent {
+                AccessibilityManager.announce("Already downloaded: \(episode.title)")
+            }
             return
         }
 
-        AccessibilityManager.announce("Downloading: \(episode.title)")
+        if !silent {
+            AccessibilityManager.announce("Downloading: \(episode.title)")
+        }
 
         NetworkManager.shared.downloadFile(from: episode.audioURL, to: localPath, progress: nil) { result in
             switch result {
             case .success:
-                AccessibilityManager.announce("Downloaded: \(episode.title)")
+                if !silent {
+                    AccessibilityManager.announce("Downloaded: \(episode.title)")
+                }
 
             case .failure(let error):
-                AccessibilityManager.announce("Download failed: \(error.localizedDescription)")
+                if !silent {
+                    AccessibilityManager.announce("Download failed: \(error.localizedDescription)")
+                }
             }
         }
     }
