@@ -222,6 +222,7 @@ class SettingsManager {
 
     private init() {
         ensureAppSupportDirectory()
+        load()  // Load settings immediately so they're available for file open handlers
     }
 
     private func ensureAppSupportDirectory() {
