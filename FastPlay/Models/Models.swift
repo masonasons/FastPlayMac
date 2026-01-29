@@ -134,6 +134,8 @@ let defaultSeekAmounts: [SeekAmount] = [
     SeekAmount(amount: 60.0, label: "1 minute", isTrack: false),
     SeekAmount(amount: 300.0, label: "5 minutes", isTrack: false),
     SeekAmount(amount: 600.0, label: "10 minutes", isTrack: false),
+    SeekAmount(amount: 1800.0, label: "30 minutes", isTrack: false),
+    SeekAmount(amount: 3600.0, label: "1 hour", isTrack: false),
     SeekAmount(amount: 1.0, label: "1 track", isTrack: true),
     SeekAmount(amount: 5.0, label: "5 tracks", isTrack: true),
     SeekAmount(amount: 10.0, label: "10 tracks", isTrack: true),
