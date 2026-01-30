@@ -366,6 +366,12 @@ class MainWindowController: NSWindowController {
             self?.streamTitle = title
             self?.updateUI()
         }
+
+        AudioEngine.shared.onTrackLoad = { [weak self] in
+            // Clear stream title when a new track loads (so file tags show instead of stale stream metadata)
+            self?.streamTitle = nil
+            self?.updateUI()
+        }
     }
 
     // MARK: - UI Updates

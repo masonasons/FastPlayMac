@@ -79,6 +79,7 @@ class AudioEngine {
 
     var onTrackEnd: (() -> Void)?
     var onMetadataChange: ((String) -> Void)?
+    var onTrackLoad: (() -> Void)?
 
     // MARK: - Chapters
 
@@ -448,6 +449,9 @@ class AudioEngine {
 
         // Parse chapters from file (if any)
         parseChapters()
+
+        // Notify that a new track was loaded
+        onTrackLoad?()
 
         return true
     }
