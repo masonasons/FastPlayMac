@@ -83,6 +83,16 @@
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
+            <string>M4B Audiobook</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.apple.protected-mpeg-4-audio-b</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
             <string>AAC Audio</string>
             <key>CFBundleTypeRole</key>
             <string>Viewer</string>

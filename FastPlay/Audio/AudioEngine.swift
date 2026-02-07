@@ -28,6 +28,7 @@ class AudioEngine {
         UTType(filenameExtension: "ogg")!,
         UTType(filenameExtension: "flac")!,
         UTType(filenameExtension: "m4a")!,
+        UTType(filenameExtension: "m4b")!,
         UTType(filenameExtension: "aac")!,
         UTType(filenameExtension: "opus")!,
         UTType(filenameExtension: "wma")!,
