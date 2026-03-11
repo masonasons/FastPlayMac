@@ -167,7 +167,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let folderURL = fileURL.deletingLastPathComponent()
 
             // Load only audio files from the immediate folder (not recursive)
-            let supportedExtensions = ["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff", "ape", "wv", "mid", "midi"]
+            let supportedExtensions = ["mp3", "wav", "ogg", "oga", "flac", "m4a", "m4b", "aac", "opus", "wma", "aiff", "ape", "wv", "mid", "midi"]
             if let contents = try? FileManager.default.contentsOfDirectory(atPath: folderURL.path) {
                 var files: [String] = []
                 for file in contents {

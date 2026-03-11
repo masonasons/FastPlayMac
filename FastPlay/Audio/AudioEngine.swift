@@ -26,6 +26,7 @@ class AudioEngine {
     static let supportedFileTypes: [UTType] = [
         .mp3, .wav, .aiff,
         UTType(filenameExtension: "ogg")!,
+        UTType(filenameExtension: "oga")!,
         UTType(filenameExtension: "flac")!,
         UTType(filenameExtension: "m4a")!,
         UTType(filenameExtension: "m4b")!,
