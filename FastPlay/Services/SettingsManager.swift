@@ -168,12 +168,14 @@ class SettingsManager {
         SeekAmount(value: 60.0, label: "1 minute", isTrack: false),
         SeekAmount(value: 300.0, label: "5 minutes", isTrack: false),
         SeekAmount(value: 600.0, label: "10 minutes", isTrack: false),
+        SeekAmount(value: 1800.0, label: "30 minutes", isTrack: false),
+        SeekAmount(value: 3600.0, label: "1 hour", isTrack: false),
         SeekAmount(value: 1.0, label: "1 track", isTrack: true),
         SeekAmount(value: 5.0, label: "5 tracks", isTrack: true),
         SeekAmount(value: 10.0, label: "10 tracks", isTrack: true),
     ]
 
-    var seekEnabled: [Bool] = [false, true, false, false, false, false, false, false, false, false]
+    var seekEnabled: [Bool] = [false, true, false, false, false, false, false, false, false, false, false, false]
     var currentSeekIndex: Int = 1              // 5 seconds (Windows: g_currentSeekIndex = 1)
 
     /// Current seek amount in seconds (only valid for non-chapter seek modes)

@@ -97,7 +97,7 @@ class PlaylistManager {
     /// Add all audio files from a folder
     func addFolder(_ folderPath: String) {
         let fileManager = FileManager.default
-        let supportedExtensions = ["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff", "ape", "wv", "mid", "midi"]
+        let supportedExtensions = ["mp3", "wav", "ogg", "oga", "flac", "m4a", "m4b", "aac", "opus", "wma", "aiff", "ape", "wv", "mid", "midi"]
 
         guard let enumerator = fileManager.enumerator(atPath: folderPath) else { return }
 

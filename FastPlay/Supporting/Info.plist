@@ -77,7 +77,18 @@
             <string>Viewer</string>
             <key>LSItemContentTypes</key>
             <array>
+                <string>org.xiph.ogg-audio</string>
                 <string>org.xiph.ogg-vorbis</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>M4B Audiobook</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.apple.protected-mpeg-4-audio-b</string>
             </array>
         </dict>
         <dict>
@@ -149,6 +160,111 @@
             <array>
                 <string>public.pls-playlist</string>
             </array>
+        </dict>
+    </array>
+
+    <!-- Imported UTI declarations (so macOS knows these file extensions) -->
+    <key>UTImportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>org.xiph.ogg-audio</string>
+            <key>UTTypeDescription</key>
+            <string>OGG Audio</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.audio</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>ogg</string>
+                    <string>oga</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>audio/ogg</string>
+                    <string>audio/vorbis</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>org.xiph.flac</string>
+            <key>UTTypeDescription</key>
+            <string>FLAC Audio</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.audio</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>flac</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>audio/flac</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>org.xiph.opus</string>
+            <key>UTTypeDescription</key>
+            <string>Opus Audio</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.audio</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>opus</string>
+                </array>
+                <key>public.mime-type</key>
+                <array>
+                    <string>audio/opus</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>public.m3u-playlist</string>
+            <key>UTTypeDescription</key>
+            <string>M3U Playlist</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.plain-text</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>m3u</string>
+                    <string>m3u8</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>public.pls-playlist</string>
+            <key>UTTypeDescription</key>
+            <string>PLS Playlist</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.plain-text</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>pls</string>
+                </array>
+            </dict>
         </dict>
     </array>
 

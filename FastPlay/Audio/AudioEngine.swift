@@ -26,8 +26,10 @@ class AudioEngine {
     static let supportedFileTypes: [UTType] = [
         .mp3, .wav, .aiff,
         UTType(filenameExtension: "ogg")!,
+        UTType(filenameExtension: "oga")!,
         UTType(filenameExtension: "flac")!,
         UTType(filenameExtension: "m4a")!,
+        UTType(filenameExtension: "m4b")!,
         UTType(filenameExtension: "aac")!,
         UTType(filenameExtension: "opus")!,
         UTType(filenameExtension: "wma")!,
@@ -79,6 +81,7 @@ class AudioEngine {
 
     var onTrackEnd: (() -> Void)?
     var onMetadataChange: ((String) -> Void)?
+    var onTrackLoad: (() -> Void)?
 
     // MARK: - Chapters
 
@@ -448,6 +451,9 @@ class AudioEngine {
 
         // Parse chapters from file (if any)
         parseChapters()
+
+        // Notify that a new track was loaded
+        onTrackLoad?()
 
         return true
     }
