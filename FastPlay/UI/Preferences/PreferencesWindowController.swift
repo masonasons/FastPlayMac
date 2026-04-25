@@ -442,13 +442,13 @@ class PreferencesWindowController: NSWindowController {
         lastAnchor = reverbLabel.bottomAnchor
 
         // Other DSP effects (checkboxes)
-        let dspEffects = ["Echo", "3-Band EQ", "Compressor", "Stereo Width", "Center Cancel", "Convolution Reverb"]
+        let dspEffects = ["Echo", "3-Band EQ", "Compressor", "Stereo Width", "Center Cancel", "Convolution Reverb", "Spatial Audio (3D)"]
         // Note: Reverb (index 0) is handled by combo above, so these start at index 1
         for (index, name) in dspEffects.enumerated() {
             let check = NSButton(checkboxWithTitle: name,
                                  target: self, action: #selector(dspEffectChanged(_:)))
             check.translatesAutoresizingMaskIntoConstraints = false
-            check.tag = 201 + index  // 201=Echo, 202=EQ, 203=Compressor, 204=StereoWidth, 205=CenterCancel, 206=Convolution
+            check.tag = 201 + index  // 201=Echo … 206=Convolution, 207=Spatial Audio
             let dspIndex = index + 1  // Skip reverb (index 0)
             check.state = (dspIndex < SettingsManager.shared.dspEffectEnabled.count && SettingsManager.shared.dspEffectEnabled[dspIndex]) ? .on : .off
             view.addSubview(check)

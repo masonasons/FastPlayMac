@@ -201,4 +201,11 @@ BOOL BASS_MIDI_StreamSetFonts(HSTREAM handle, const BASS_MIDI_FONT * _Nullable f
 // Custom DSP callbacks (C implementations for reliability)
 #include "../Audio/DSPCallbacks.h"
 
+// Steam Audio (spatial / binaural / 5.1 virtual surround)
+// Only exposed when the SDK has been downloaded by download-deps.sh.
+#if __has_include("SteamAudio/phonon.h")
+#include "SteamAudio/phonon.h"
+#define FASTPLAY_HAS_STEAM_AUDIO 1
+#endif
+
 #endif /* FastPlay_Bridging_Header_h */

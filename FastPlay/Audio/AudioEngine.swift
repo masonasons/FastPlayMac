@@ -1330,6 +1330,10 @@ class AudioEngine {
 
             DispatchQueue.main.async { [weak self] in
                 self?.onMetadataChange?(displayTitle)
+                // Record to song history (matches Windows AnnounceStreamMetadata)
+                if !displayTitle.isEmpty {
+                    DatabaseManager.shared.addSongHistoryEntry(title: displayTitle)
+                }
             }
         }
     }

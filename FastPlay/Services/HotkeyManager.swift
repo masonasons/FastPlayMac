@@ -72,8 +72,16 @@ class HotkeyManager {
         // Recording
         case toggleRecording = 1080
 
-        // Shuffle
+        // Shuffle / Repeat
         case toggleShuffle = 1090
+        case toggleRepeat = 1091
+
+        // Mute
+        case toggleMute = 1095
+
+        // Additional DSP effect toggles (parity with Windows)
+        case toggleConvolution = 1100
+        case toggleSpatialAudio = 1101
 
         /// Display name for UI
         var displayName: String {
@@ -113,6 +121,10 @@ class HotkeyManager {
             case .youtubeSearch: return "YouTube Search"
             case .toggleRecording: return "Toggle Recording"
             case .toggleShuffle: return "Toggle Shuffle"
+            case .toggleRepeat: return "Toggle Repeat"
+            case .toggleMute: return "Toggle Mute"
+            case .toggleConvolution: return "Toggle Convolution"
+            case .toggleSpatialAudio: return "Toggle Spatial Audio"
             }
         }
     }
@@ -418,6 +430,18 @@ class HotkeyManager {
             SettingsManager.shared.shuffle.toggle()
             let state = SettingsManager.shared.shuffle ? "Shuffle on" : "Shuffle off"
             AccessibilityManager.announce(state)
+
+        case .toggleRepeat:
+            PlaylistManager.shared.toggleRepeatMode()
+
+        case .toggleMute:
+            AudioEngine.shared.toggleMute()
+
+        case .toggleConvolution:
+            DSPEffectsManager.shared.toggleEffect(.convolution)
+
+        case .toggleSpatialAudio:
+            DSPEffectsManager.shared.toggleEffect(.spatialAudio)
         }
     }
 
@@ -666,30 +690,10 @@ class HotkeyManager {
             }
 
         case .dspParam(let paramId):
-            guard let def = DSPEffectsManager.paramDefs.first(where: { $0.id == paramId }) else { return }
-            let val = DSPEffectsManager.shared.getParamValue(paramId)
-            message = formatDSPParamValue(name: def.name, value: val, unit: def.unit)
+            message = DSPEffectsManager.announcementText(for: paramId)
         }
 
         AccessibilityManager.announce(message)
-    }
-
-    /// Format DSP parameter value for speech
-    private func formatDSPParamValue(name: String, value: Float, unit: String) -> String {
-        if unit == "%" || unit == "ms" {
-            return String(format: "%@ %.0f%@", name, value, unit)
-        } else if unit == "dB" {
-            // Show + sign for positive values
-            if value > 0 {
-                return String(format: "%@ +%.0f%@", name, value, unit)
-            } else {
-                return String(format: "%@ %.0f%@", name, value, unit)
-            }
-        } else if unit == ":1" {
-            return String(format: "%@ %.0f%@", name, value, unit)
-        } else {
-            return String(format: "%@ %.2f%@", name, value, unit)
-        }
     }
 
     /// Get list of available parameters (matching Windows GetAvailableParams)

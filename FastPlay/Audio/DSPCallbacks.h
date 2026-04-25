@@ -32,9 +32,14 @@ void DSP_FreeCenterCancelProcessor(void);
 typedef void (*DSP_ConvolutionCallback)(float *buffer, unsigned int frames);
 void DSP_SetConvolutionCallback(DSP_ConvolutionCallback callback);
 
+// Spatial audio callback type (Swift provides the Steam Audio processor)
+typedef void (*DSP_SpatialCallback)(float *buffer, unsigned int frames);
+void DSP_SetSpatialCallback(DSP_SpatialCallback callback);
+
 // DSP callback functions (pass to BASS_ChannelSetDSP)
 void CALLBACK DSP_StereoWidthProc(HDSP handle, DWORD channel, void *buffer, DWORD length, void *user);
 void CALLBACK DSP_CenterCancelProc(HDSP handle, DWORD channel, void *buffer, DWORD length, void *user);
 void CALLBACK DSP_ConvolutionProc(HDSP handle, DWORD channel, void *buffer, DWORD length, void *user);
+void CALLBACK DSP_SpatialProc(HDSP handle, DWORD channel, void *buffer, DWORD length, void *user);
 
 #endif /* DSPCallbacks_h */

@@ -255,6 +255,10 @@ class PodcastWindowController: NSWindowController {
         importButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(importButton)
 
+        let exportButton = NSButton(title: "Export OPML...", target: self, action: #selector(exportOPML))
+        exportButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(exportButton)
+
         NSLayoutConstraint.activate([
             searchLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 15),
             searchLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
@@ -274,6 +278,9 @@ class PodcastWindowController: NSWindowController {
 
             importButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
             importButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
+
+            exportButton.leadingAnchor.constraint(equalTo: importButton.trailingAnchor, constant: 10),
+            exportButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
 
             subscribeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
             subscribeButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -10),
@@ -503,6 +510,49 @@ class PodcastWindowController: NSWindowController {
                 }
             }
         }
+    }
+
+    @objc private func exportOPML() {
+        guard !subscriptions.isEmpty else {
+            AccessibilityManager.announce("No subscriptions to export")
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.xml]
+        panel.nameFieldStringValue = "FastPlay-subscriptions.opml"
+
+        guard panel.runModal() == .OK, let fileURL = panel.url else { return }
+
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        xml += "<opml version=\"2.0\">\n"
+        xml += "  <head>\n"
+        xml += "    <title>FastPlay Podcast Subscriptions</title>\n"
+        xml += "  </head>\n"
+        xml += "  <body>\n"
+        for sub in subscriptions {
+            let title = escapeXML(sub.title)
+            let url = escapeXML(sub.feedURL)
+            xml += "    <outline type=\"rss\" text=\"\(title)\" title=\"\(title)\" xmlUrl=\"\(url)\"/>\n"
+        }
+        xml += "  </body>\n"
+        xml += "</opml>\n"
+
+        do {
+            try xml.write(to: fileURL, atomically: true, encoding: .utf8)
+            AccessibilityManager.announce("Exported \(subscriptions.count) feeds")
+        } catch {
+            AccessibilityManager.announce("Export failed")
+        }
+    }
+
+    private func escapeXML(_ s: String) -> String {
+        var out = s.replacingOccurrences(of: "&", with: "&amp;")
+        out = out.replacingOccurrences(of: "<", with: "&lt;")
+        out = out.replacingOccurrences(of: ">", with: "&gt;")
+        out = out.replacingOccurrences(of: "\"", with: "&quot;")
+        out = out.replacingOccurrences(of: "'", with: "&apos;")
+        return out
     }
 
     /// Parse OPML file and extract feed URLs with titles

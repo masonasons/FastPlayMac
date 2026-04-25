@@ -330,6 +330,9 @@ class MainWindowController: NSWindowController {
                 let state = SettingsManager.shared.shuffle ? "Shuffle on" : "Shuffle off"
                 AccessibilityManager.announce(state)
                 return true
+            case "e":
+                PlaylistManager.shared.toggleRepeatMode()
+                return true
             case "j":
                 showJumpToTimeDialog()
                 return true
@@ -748,30 +751,10 @@ class MainWindowController: NSWindowController {
             }
 
         case .dspParam(let paramId):
-            guard let def = DSPEffectsManager.paramDefs.first(where: { $0.id == paramId }) else { return }
-            let val = DSPEffectsManager.shared.getParamValue(paramId)
-            message = formatDSPParamValue(name: def.name, value: val, unit: def.unit)
+            message = DSPEffectsManager.announcementText(for: paramId)
         }
 
         AccessibilityManager.announce(message)
-    }
-
-    private func formatDSPParamValue(name: String, value: Float, unit: String) -> String {
-        // Format based on unit type (matching Windows)
-        if unit == "%" || unit == "ms" {
-            return String(format: "%@ %.0f%@", name, value, unit)
-        } else if unit == "dB" {
-            // Show + sign for positive values
-            if value > 0 {
-                return String(format: "%@ +%.0f%@", name, value, unit)
-            } else {
-                return String(format: "%@ %.0f%@", name, value, unit)
-            }
-        } else if unit == ":1" {
-            return String(format: "%@ %.0f%@", name, value, unit)
-        } else {
-            return String(format: "%@ %.2f%@", name, value, unit)
-        }
     }
 
     // MARK: - Seek Amount

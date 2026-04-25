@@ -270,6 +270,13 @@ class PlaylistManager {
     func next() {
         guard !tracks.isEmpty else { return }
 
+        // Repeat one: restart current track (matches Windows NextTrack).
+        if SettingsManager.shared.repeatMode == 1,
+           currentIndex >= 0, currentIndex < tracks.count {
+            playTrack(at: currentIndex)
+            return
+        }
+
         if shuffleEnabled && !shuffleOrder.isEmpty {
             // Shuffle mode
             shuffleIndex += 1
@@ -284,11 +291,22 @@ class PlaylistManager {
             let nextIndex = currentIndex + 1
             if nextIndex < tracks.count {
                 playTrack(at: nextIndex)
+            } else if SettingsManager.shared.repeatMode == 2 {
+                // Repeat all: wrap to beginning
+                playTrack(at: 0)
             } else if SettingsManager.shared.autoAdvance {
-                // Wrap to beginning
+                // Legacy autoAdvance behavior (wrap to start)
                 playTrack(at: 0)
             }
         }
+    }
+
+    /// Cycle repeat mode: Off → Track → All → Off (matches Windows ToggleRepeatMode).
+    func toggleRepeatMode() {
+        let newMode = (SettingsManager.shared.repeatMode + 1) % 3
+        SettingsManager.shared.repeatMode = newMode
+        let names = ["Repeat off", "Repeat track", "Repeat all"]
+        AccessibilityManager.announce(names[newMode])
     }
 
     /// Play previous track
@@ -316,7 +334,8 @@ class PlaylistManager {
 
     /// Handle track end
     private func handleTrackEnd() {
-        if SettingsManager.shared.autoAdvance {
+        // Matches Windows: auto-advance OR any repeat mode triggers next().
+        if SettingsManager.shared.autoAdvance || SettingsManager.shared.repeatMode != 0 {
             next()
         }
     }

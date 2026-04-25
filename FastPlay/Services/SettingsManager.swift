@@ -64,8 +64,8 @@ class SettingsManager {
 
     // MARK: - Effects Settings (matching Windows defaults)
 
-    // DSP effect toggles: [Reverb, Echo, EQ, Compressor, StereoWidth, CenterCancel, Convolution]
-    var dspEffectEnabled: [Bool] = [false, false, false, false, false, false, false]
+    // DSP effect toggles: [Reverb, Echo, EQ, Compressor, StereoWidth, CenterCancel, Convolution, SpatialAudio]
+    var dspEffectEnabled: [Bool] = [false, false, false, false, false, false, false, false]
 
     var reverbAlgorithm: Int = 0               // 0=Off (Windows: g_reverbAlgorithm = 0)
     var convolutionIRPath: String = ""
@@ -94,6 +94,16 @@ class SettingsManager {
     var centerCancel: Float = 0.0              // (Windows: g_centerCancel = 0)
     var convolutionMix: Float = 50.0           // (Windows: g_convolutionMix = 50)
     var convolutionGain: Float = 0.0           // (Windows: g_convolutionGain = 0)
+
+    // Spatial audio (Steam Audio / HRTF) — defaults match Windows effects.cpp
+    var spatialBlend: Float = 100.0            // 0..100% dry/wet mix
+    var spatialWidth: Float = 45.0             // 15..90° front speaker angle
+    var spatialRotation: Float = 0.0           // -180..180°
+    var spatialMode: Int = 0                   // 0=Binaural, 1=5.1 Surround
+    var spatialRearCenter: Bool = true         // 5.1 only
+    var spatialX: Float = 0.0                  // listener position
+    var spatialY: Float = 0.0
+    var spatialZ: Float = 0.0
 
     // MARK: - MIDI Settings (matching Windows defaults)
 
@@ -145,6 +155,7 @@ class SettingsManager {
 
     var shuffle: Bool = false                  // (Windows: g_shuffle = false)
     var autoAdvance: Bool = true               // (Windows: g_autoAdvance = true)
+    var repeatMode: Int = 0                    // 0=Off, 1=Track, 2=All (Windows: g_repeatMode)
 
     // MARK: - Chapters (matching Windows defaults)
 
@@ -283,6 +294,7 @@ class SettingsManager {
             case "Rate": rate = Float(value) ?? 1.0
             case "Shuffle": shuffle = value == "1"
             case "AutoAdvance": autoAdvance = value == "1"
+            case "RepeatMode": repeatMode = Int(value) ?? 0
             default: break
             }
 
@@ -327,6 +339,7 @@ class SettingsManager {
             case "DSPStereoWidth": dspEffectEnabled[4] = value == "1"
             case "DSPCenterCancel": dspEffectEnabled[5] = value == "1"
             case "DSPConvolution": dspEffectEnabled[6] = value == "1"
+            case "DSPSpatialAudio": dspEffectEnabled[7] = value == "1"
             // DSP parameter values
             case "ReverbMix": reverbMix = Float(value) ?? 30.0
             case "ReverbRoom": reverbRoom = Float(value) ?? 50.0
@@ -347,6 +360,14 @@ class SettingsManager {
             case "CenterCancel": centerCancel = Float(value) ?? 0.0
             case "ConvolutionMix": convolutionMix = Float(value) ?? 50.0
             case "ConvolutionGain": convolutionGain = Float(value) ?? 0.0
+            case "SpatialBlend": spatialBlend = Float(value) ?? 100.0
+            case "SpatialWidth": spatialWidth = Float(value) ?? 45.0
+            case "SpatialRotation": spatialRotation = Float(value) ?? 0.0
+            case "SpatialMode": spatialMode = Int(value) ?? 0
+            case "SpatialRearCenter": spatialRearCenter = value == "1"
+            case "SpatialX": spatialX = Float(value) ?? 0.0
+            case "SpatialY": spatialY = Float(value) ?? 0.0
+            case "SpatialZ": spatialZ = Float(value) ?? 0.0
             default: break
             }
 
@@ -465,6 +486,7 @@ class SettingsManager {
         content += "Rate=\(rate)\n"
         content += "Shuffle=\(shuffle ? 1 : 0)\n"
         content += "AutoAdvance=\(autoAdvance ? 1 : 0)\n"
+        content += "RepeatMode=\(repeatMode)\n"
         content += "\n"
 
         // Device section
@@ -505,6 +527,7 @@ class SettingsManager {
         content += "DSPCompressor=\(dspEffectEnabled[3] ? 1 : 0)\n"
         content += "DSPStereoWidth=\(dspEffectEnabled[4] ? 1 : 0)\n"
         content += "DSPCenterCancel=\(dspEffectEnabled[5] ? 1 : 0)\n"
+        content += "DSPSpatialAudio=\(dspEffectEnabled[7] ? 1 : 0)\n"
         content += "DSPConvolution=\(dspEffectEnabled[6] ? 1 : 0)\n"
         // DSP parameter values
         content += "ReverbMix=\(reverbMix)\n"
@@ -526,6 +549,14 @@ class SettingsManager {
         content += "CenterCancel=\(centerCancel)\n"
         content += "ConvolutionMix=\(convolutionMix)\n"
         content += "ConvolutionGain=\(convolutionGain)\n"
+        content += "SpatialBlend=\(spatialBlend)\n"
+        content += "SpatialWidth=\(spatialWidth)\n"
+        content += "SpatialRotation=\(spatialRotation)\n"
+        content += "SpatialMode=\(spatialMode)\n"
+        content += "SpatialRearCenter=\(spatialRearCenter ? 1 : 0)\n"
+        content += "SpatialX=\(spatialX)\n"
+        content += "SpatialY=\(spatialY)\n"
+        content += "SpatialZ=\(spatialZ)\n"
         content += "\n"
 
         // MIDI section

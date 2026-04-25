@@ -116,6 +116,27 @@ if [ ! -f "FastPlay/Supporting/BASS/bass.h" ]; then
 fi
 
 echo ""
+echo "Downloading Steam Audio SDK (spatial audio / HRTF)..."
+STEAM_AUDIO_VERSION="4.8.1"
+if curl -sfL "https://github.com/ValveSoftware/steam-audio/releases/download/v${STEAM_AUDIO_VERSION}/steamaudio_${STEAM_AUDIO_VERSION}.zip" -o "temp_dl/steamaudio.zip"; then
+    if unzip -qo "temp_dl/steamaudio.zip" -d "temp_dl/steamaudio" 2>/dev/null; then
+        if [ -f "temp_dl/steamaudio/steamaudio/lib/osx/libphonon.dylib" ]; then
+            cp "temp_dl/steamaudio/steamaudio/lib/osx/libphonon.dylib" Frameworks/
+            echo "  ✓ libphonon.dylib"
+            mkdir -p FastPlay/Supporting/SteamAudio
+            cp temp_dl/steamaudio/steamaudio/include/phonon.h            FastPlay/Supporting/SteamAudio/
+            cp temp_dl/steamaudio/steamaudio/include/phonon_interfaces.h FastPlay/Supporting/SteamAudio/
+            cp temp_dl/steamaudio/steamaudio/include/phonon_version.h    FastPlay/Supporting/SteamAudio/
+            echo "  ✓ phonon.h, phonon_interfaces.h, phonon_version.h"
+        else
+            echo "  ✗ libphonon.dylib not found in archive (skipped — spatial audio unavailable)"
+        fi
+    fi
+else
+    echo "  ✗ Steam Audio download failed (skipped — spatial audio unavailable)"
+fi
+
+echo ""
 echo "Cleaning up..."
 rm -rf temp_dl
 

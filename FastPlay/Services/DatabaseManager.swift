@@ -125,6 +125,15 @@ class DatabaseManager {
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        // Song history table (stream metadata captured during radio playback)
+        execute("""
+            CREATE TABLE IF NOT EXISTS song_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                timestamp INTEGER NOT NULL
+            )
+        """)
     }
 
     private func execute(_ sql: String) {
@@ -658,6 +667,68 @@ class DatabaseManager {
 
     func clearOldFilePositions(olderThanDays days: Int) {
         execute("DELETE FROM FilePositions WHERE updated_at < datetime('now', '-\(days) days')")
+    }
+
+    // MARK: - Song History
+
+    /// Record a captured stream title. Skips if identical to the most recent entry
+    /// and keeps only the last 100 rows, matching the Windows implementation.
+    func addSongHistoryEntry(title: String) {
+        guard db != nil, !title.isEmpty else { return }
+
+        // Skip consecutive duplicates
+        let checkSql = "SELECT title FROM song_history ORDER BY id DESC LIMIT 1"
+        var checkStmt: OpaquePointer?
+        if sqlite3_prepare_v2(db, checkSql, -1, &checkStmt, nil) == SQLITE_OK {
+            if sqlite3_step(checkStmt) == SQLITE_ROW,
+               let cStr = sqlite3_column_text(checkStmt, 0),
+               String(cString: cStr) == title {
+                sqlite3_finalize(checkStmt)
+                return
+            }
+            sqlite3_finalize(checkStmt)
+        }
+
+        let insertSql = "INSERT INTO song_history (title, timestamp) VALUES (?, ?)"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, insertSql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, title, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int64(stmt, 2, Int64(Date().timeIntervalSince1970))
+        sqlite3_step(stmt)
+
+        execute("""
+            DELETE FROM song_history WHERE id NOT IN (
+                SELECT id FROM song_history ORDER BY id DESC LIMIT 100
+            )
+        """)
+    }
+
+    func getSongHistory() -> [SongHistoryEntry] {
+        let sql = "SELECT id, title, timestamp FROM song_history ORDER BY id DESC LIMIT 100"
+        var stmt: OpaquePointer?
+        var entries: [SongHistoryEntry] = []
+
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let id = sqlite3_column_int64(stmt, 0)
+            let title = String(cString: sqlite3_column_text(stmt, 1))
+            let timestamp = sqlite3_column_int64(stmt, 2)
+            entries.append(SongHistoryEntry(
+                id: id,
+                title: title,
+                date: Date(timeIntervalSince1970: TimeInterval(timestamp))
+            ))
+        }
+
+        return entries
+    }
+
+    func clearSongHistory() {
+        execute("DELETE FROM song_history")
     }
 }
 

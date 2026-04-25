@@ -286,6 +286,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         BookmarksWindowController.shared.show()
     }
 
+    @IBAction func showSongHistory(_ sender: Any?) {
+        SongHistoryWindowController.shared.show()
+    }
+
     @IBAction func showPreferences(_ sender: Any?) {
         PreferencesWindowController.shared.show()
     }
@@ -351,6 +355,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let state = SettingsManager.shared.shuffle ? "Shuffle on" : "Shuffle off"
             AccessibilityManager.announce(state)
         }
+    }
+
+    @IBAction func toggleRepeat(_ sender: Any?) {
+        PlaylistManager.shared.toggleRepeatMode()
     }
 
     @IBAction func volumeUp(_ sender: Any?) {

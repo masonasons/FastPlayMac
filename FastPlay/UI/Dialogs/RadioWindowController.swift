@@ -822,6 +822,22 @@ class RadioWindowController: NSWindowController {
     }
 
     private func handleKeyDown(_ event: NSEvent) -> Bool {
+        // Cmd+C = copy selected station URL to clipboard (parity with Windows radio dialog).
+        if event.keyCode == 8 && event.modifierFlags.contains(.command) {
+            // Only steal Cmd+C if a station row is selected; otherwise let text fields copy normally.
+            let onFavorites = (tabView.selectedTabViewItem?.identifier as? String) == "favorites"
+            let source = onFavorites ? favorites : searchResults
+            let table = onFavorites ? favoritesTable : searchTable
+            let row = table?.selectedRow ?? -1
+            if row >= 0 && row < source.count {
+                let pb = NSPasteboard.general
+                pb.clearContents()
+                pb.setString(source[row].url, forType: .string)
+                AccessibilityManager.announce("URL copied")
+                return true
+            }
+        }
+
         // Command+W = Close
         if event.keyCode == 13 && event.modifierFlags.contains(.command) {
             window?.close()

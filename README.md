@@ -1,7 +1,5 @@
 # FastPlay for macOS
 
-This repository marks the last open source push of FastPlay for Mac to Github.
-
 A macOS port of FastPlay audio player, maintaining exact feature parity with the Windows version.
 
 ## Requirements

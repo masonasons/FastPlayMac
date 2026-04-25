@@ -85,6 +85,14 @@ struct ScheduledEvent {
     }
 }
 
+// MARK: - Song History Entry
+
+struct SongHistoryEntry {
+    let id: Int64
+    let title: String
+    let date: Date
+}
+
 // MARK: - Chapter
 
 struct Chapter {

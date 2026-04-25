@@ -27,6 +27,13 @@ void DSP_SetConvolutionCallback(DSP_ConvolutionCallback callback) {
     g_convolutionCallback = callback;
 }
 
+// Spatial audio callback function pointer (set from Swift)
+static DSP_SpatialCallback g_spatialCallback = NULL;
+
+void DSP_SetSpatialCallback(DSP_SpatialCallback callback) {
+    g_spatialCallback = callback;
+}
+
 // Setter functions (called from Swift)
 void DSP_SetStereoWidth(float value) {
     g_dsp_stereoWidth = value;
@@ -436,4 +443,18 @@ void CALLBACK DSP_ConvolutionProc(HDSP handle, DWORD channel, void *buffer, DWOR
 
     // Call the Swift convolution processor
     g_convolutionCallback(samples, frameCount);
+}
+
+// Spatial Audio DSP callback (defers to Swift SpatialAudio.process)
+void CALLBACK DSP_SpatialProc(HDSP handle, DWORD channel, void *buffer, DWORD length, void *user) {
+    if (!buffer || !g_spatialCallback) return;
+
+    BASS_CHANNELINFO info;
+    if (!BASS_ChannelGetInfo(channel, &info)) return;
+    if (info.chans != 2) return;
+    if (!(info.flags & BASS_SAMPLE_FLOAT)) return;
+
+    float *samples = (float *)buffer;
+    DWORD frameCount = length / (sizeof(float) * 2);
+    g_spatialCallback(samples, frameCount);
 }

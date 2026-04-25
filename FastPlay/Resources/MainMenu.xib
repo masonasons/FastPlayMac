@@ -112,6 +112,12 @@
                                     <action selector="showBookmarks:" target="-1" id="212"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Song History..." keyEquivalent="H" id="213">
+                                <modifierMask key="keyEquivalentModifierMask" shift="YES" command="YES"/>
+                                <connections>
+                                    <action selector="showSongHistory:" target="-1" id="214"/>
+                                </connections>
+                            </menuItem>
                         </items>
                     </menu>
                 </menuItem>
@@ -154,6 +160,11 @@
                             <menuItem title="Shuffle" id="315">
                                 <connections>
                                     <action selector="toggleShuffle:" target="-1" id="316"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Repeat" id="500">
+                                <connections>
+                                    <action selector="toggleRepeat:" target="-1" id="501"/>
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="317"/>

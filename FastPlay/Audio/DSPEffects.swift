@@ -17,6 +17,7 @@ enum DSPEffectType: Int, CaseIterable {
     case stereoWidth = 4
     case centerCancel = 5
     case convolution = 6
+    case spatialAudio = 7
 }
 
 /// Parameter IDs for effects
@@ -47,6 +48,15 @@ enum DSPParamId: Int, CaseIterable {
     // Convolution
     case convolutionMix = 17
     case convolutionGain = 18
+    // Spatial audio (Steam Audio / HRTF)
+    case spatialBlend = 19
+    case spatialWidth = 20
+    case spatialRotation = 21
+    case spatialMode = 22
+    case spatialRearCenter = 23
+    case spatialX = 24
+    case spatialY = 25
+    case spatialZ = 26
 }
 
 /// Parameter definition
@@ -98,6 +108,15 @@ class DSPEffectsManager {
         // Convolution
         DSPParamDef(id: .convolutionMix, name: "Conv Mix", unit: "%", minValue: 0, maxValue: 100, step: 5, defaultValue: 50, effectType: .convolution),
         DSPParamDef(id: .convolutionGain, name: "Conv Gain", unit: "dB", minValue: -20, maxValue: 20, step: 1, defaultValue: 0, effectType: .convolution),
+        // Spatial audio (matches Windows defaults in effects.cpp)
+        DSPParamDef(id: .spatialBlend, name: "3D Blend", unit: "%", minValue: 0, maxValue: 100, step: 5, defaultValue: 100, effectType: .spatialAudio),
+        DSPParamDef(id: .spatialWidth, name: "3D Width", unit: " deg", minValue: 15, maxValue: 90, step: 5, defaultValue: 45, effectType: .spatialAudio),
+        DSPParamDef(id: .spatialRotation, name: "3D Rotation", unit: " deg", minValue: -180, maxValue: 180, step: 5, defaultValue: 0, effectType: .spatialAudio),
+        DSPParamDef(id: .spatialMode, name: "3D Mode", unit: "", minValue: 0, maxValue: 1, step: 1, defaultValue: 0, effectType: .spatialAudio),
+        DSPParamDef(id: .spatialRearCenter, name: "3D Rear Speaker", unit: "", minValue: 0, maxValue: 1, step: 1, defaultValue: 1, effectType: .spatialAudio),
+        DSPParamDef(id: .spatialX, name: "3D Listener X", unit: "", minValue: -50, maxValue: 50, step: 1, defaultValue: 0, effectType: .spatialAudio),
+        DSPParamDef(id: .spatialY, name: "3D Listener Y", unit: "", minValue: -50, maxValue: 50, step: 1, defaultValue: 0, effectType: .spatialAudio),
+        DSPParamDef(id: .spatialZ, name: "3D Listener Z", unit: "", minValue: -50, maxValue: 50, step: 1, defaultValue: 0, effectType: .spatialAudio),
     ]
 
     // MARK: - State
@@ -116,6 +135,7 @@ class DSPEffectsManager {
     private var hdspStereoWidth: HDSP = 0
     private var hdspCenterCancel: HDSP = 0
     private var hdspConvolution: HDSP = 0
+    private var hdspSpatial: HDSP = 0
 
     // Current reverb algorithm (0=Off, 1=Freeverb)
     var reverbAlgorithm: Int = 0 {
@@ -156,6 +176,14 @@ class DSPEffectsManager {
         paramValues[DSPParamId.centerCancel.rawValue] = settings.centerCancel
         paramValues[DSPParamId.convolutionMix.rawValue] = settings.convolutionMix
         paramValues[DSPParamId.convolutionGain.rawValue] = settings.convolutionGain
+        paramValues[DSPParamId.spatialBlend.rawValue] = settings.spatialBlend
+        paramValues[DSPParamId.spatialWidth.rawValue] = settings.spatialWidth
+        paramValues[DSPParamId.spatialRotation.rawValue] = settings.spatialRotation
+        paramValues[DSPParamId.spatialMode.rawValue] = Float(settings.spatialMode)
+        paramValues[DSPParamId.spatialRearCenter.rawValue] = settings.spatialRearCenter ? 1 : 0
+        paramValues[DSPParamId.spatialX.rawValue] = settings.spatialX
+        paramValues[DSPParamId.spatialY.rawValue] = settings.spatialY
+        paramValues[DSPParamId.spatialZ.rawValue] = settings.spatialZ
     }
 
     /// Save a single parameter value to SettingsManager
@@ -182,6 +210,14 @@ class DSPEffectsManager {
         case .centerCancel: settings.centerCancel = value
         case .convolutionMix: settings.convolutionMix = value
         case .convolutionGain: settings.convolutionGain = value
+        case .spatialBlend: settings.spatialBlend = value
+        case .spatialWidth: settings.spatialWidth = value
+        case .spatialRotation: settings.spatialRotation = value
+        case .spatialMode: settings.spatialMode = Int(value)
+        case .spatialRearCenter: settings.spatialRearCenter = value >= 0.5
+        case .spatialX: settings.spatialX = value
+        case .spatialY: settings.spatialY = value
+        case .spatialZ: settings.spatialZ = value
         }
     }
 
@@ -200,7 +236,7 @@ class DSPEffectsManager {
         let newState = !effectEnabled[type.rawValue]
         effectEnabled[type.rawValue] = newState
 
-        let names = ["Reverb", "Echo", "EQ", "Compressor", "Stereo Width", "Center Cancel", "Convolution"]
+        let names = ["Reverb", "Echo", "EQ", "Compressor", "Stereo Width", "Center Cancel", "Convolution", "Spatial Audio"]
         let message = "\(names[type.rawValue]) \(newState ? "enabled" : "disabled")"
         AccessibilityManager.announce(message)
 
@@ -246,12 +282,27 @@ class DSPEffectsManager {
     func adjustParam(_ param: DSPParamId, increase: Bool) {
         guard let def = DSPEffectsManager.paramDefs.first(where: { $0.id == param }) else { return }
         let step = increase ? def.step : -def.step
-        let newValue = paramValues[param.rawValue] + step
-        setParamValue(param, value: newValue)
+        var newValue = paramValues[param.rawValue] + step
 
-        // Announce
-        let value = paramValues[param.rawValue]
-        AccessibilityManager.announce("\(def.name) \(formatValue(value, unit: def.unit))")
+        // Windows AdjustCurrentParam in effects.cpp wraps around for 3D Rotation
+        // (continuous angle — ±180° meet) and for the two discrete toggles
+        // (3D Mode, 3D Rear Speaker — past-max wraps to min). Everything else
+        // clamps, which setParamValue does for us.
+        switch param {
+        case .spatialRotation:
+            let range = def.maxValue - def.minValue
+            while newValue > def.maxValue { newValue -= range }
+            while newValue < def.minValue { newValue += range }
+        case .spatialMode, .spatialRearCenter:
+            let range = def.maxValue - def.minValue + def.step
+            while newValue > def.maxValue { newValue -= range }
+            while newValue < def.minValue { newValue += range }
+        default:
+            break
+        }
+
+        setParamValue(param, value: newValue)
+        AccessibilityManager.announce(DSPEffectsManager.announcementText(for: param))
     }
 
     func resetParam(_ param: DSPParamId) {
@@ -264,7 +315,7 @@ class DSPEffectsManager {
         guard let def = DSPEffectsManager.paramDefs.first(where: { $0.id == param }) else { return }
         let value = minimum ? def.minValue : def.maxValue
         setParamValue(param, value: value)
-        AccessibilityManager.announce("\(def.name) \(formatValue(value, unit: def.unit))")
+        AccessibilityManager.announce(DSPEffectsManager.announcementText(for: param))
     }
 
     private func formatValue(_ value: Float, unit: String) -> String {
@@ -275,6 +326,38 @@ class DSPEffectsManager {
         } else {
             return String(format: "%.2f%@", value, unit)
         }
+    }
+
+    /// Canonical "Name Value" announcement for a DSP parameter.
+    /// Matches the Windows AnnounceCurrentParam behaviour in effects.cpp:
+    /// semantic values for 3D Mode / Rear Speaker, signed format for
+    /// pitch-like EQ bands, and a plain "%.0f<unit>" fallback otherwise.
+    static func announcementText(for paramId: DSPParamId) -> String {
+        let value = shared.getParamValue(paramId)
+
+        switch paramId {
+        case .spatialMode:
+            return "3D Mode: \(value >= 0.5 ? "5.1 Surround" : "Binaural")"
+        case .spatialRearCenter:
+            return "3D Rear Speaker: \(value >= 0.5 ? "On" : "Off")"
+        default:
+            break
+        }
+
+        guard let def = paramDefs.first(where: { $0.id == paramId }) else { return "" }
+
+        // Signed format for EQ bands (Windows: Pitch || EQBass || EQMid || EQTreble)
+        let useSigned: Bool
+        switch paramId {
+        case .eqBass, .eqMid, .eqTreble:
+            useSigned = true
+        default:
+            useSigned = false
+        }
+        if useSigned && value > 0 {
+            return String(format: "%@ +%.0f%@", def.name, value, def.unit)
+        }
+        return String(format: "%@ %.0f%@", def.name, value, def.unit)
     }
 
     // MARK: - Convolution IR Loading
@@ -404,6 +487,33 @@ class DSPEffectsManager {
 
             hdspConvolution = BASS_ChannelSetDSP(stream, DSP_ConvolutionProc, nil, 0)
         }
+
+        // Apply Spatial Audio (Steam Audio HRTF / 5.1 virtual surround)
+        if isDSPEnabled(.spatialAudio) {
+            var info = BASS_CHANNELINFO()
+            if BASS_ChannelGetInfo(stream, &info) != 0 {
+                SpatialAudio.shared.mode = getParamValue(.spatialMode) >= 0.5 ? .surround51 : .binaural
+                SpatialAudio.shared.rearCenter = getParamValue(.spatialRearCenter) >= 0.5
+                SpatialAudio.shared.width = getParamValue(.spatialWidth)
+                SpatialAudio.shared.rotation = getParamValue(.spatialRotation)
+                SpatialAudio.shared.listenerX = getParamValue(.spatialX)
+                SpatialAudio.shared.listenerY = getParamValue(.spatialY)
+                SpatialAudio.shared.listenerZ = getParamValue(.spatialZ)
+
+                if SpatialAudio.shared.initialize(sampleRate: Int(info.freq)) {
+                    DSP_SetSpatialCallback { buffer, frames in
+                        guard let buffer = buffer else { return }
+                        let blend = DSPEffectsManager.shared.getParamValue(.spatialBlend) / 100.0
+                        SpatialAudio.shared.process(buffer, frameCount: Int(frames), blend: blend)
+                    }
+                    hdspSpatial = BASS_ChannelSetDSP(stream, DSP_SpatialProc, nil, 0)
+                } else {
+                    print("Spatial audio init failed: \(SpatialAudio.shared.lastError)")
+                    SettingsManager.shared.dspEffectEnabled[DSPEffectType.spatialAudio.rawValue] = false
+                    effectEnabled[DSPEffectType.spatialAudio.rawValue] = false
+                }
+            }
+        }
     }
 
     func removeEffects() {
@@ -424,6 +534,11 @@ class DSPEffectsManager {
             hdspConvolution = 0
             DSP_SetConvolutionCallback(nil)  // Clear the callback
         }
+        if hdspSpatial != 0 {
+            BASS_ChannelRemoveDSP(stream, hdspSpatial)
+            hdspSpatial = 0
+            DSP_SetSpatialCallback(nil)
+        }
     }
 
     // MARK: - Update Individual Effects
@@ -443,6 +558,21 @@ class DSPEffectsManager {
         case .stereoWidth, .centerCancel, .convolution:
             // Custom DSPs read values directly from paramValues
             break
+        case .spatialAudio:
+            // Push the full set of live params down to the Steam Audio wrapper
+            // so parameter changes take effect immediately while playing.
+            SpatialAudio.shared.width = getParamValue(.spatialWidth)
+            SpatialAudio.shared.rotation = getParamValue(.spatialRotation)
+            SpatialAudio.shared.listenerX = getParamValue(.spatialX)
+            SpatialAudio.shared.listenerY = getParamValue(.spatialY)
+            SpatialAudio.shared.listenerZ = getParamValue(.spatialZ)
+            SpatialAudio.shared.rearCenter = getParamValue(.spatialRearCenter) >= 0.5
+            // Mode change tears down and rebuilds the Steam Audio effects chain,
+            // so only set it when it actually changes.
+            let newMode: SpatialMode = getParamValue(.spatialMode) >= 0.5 ? .surround51 : .binaural
+            if SpatialAudio.shared.mode != newMode {
+                SpatialAudio.shared.mode = newMode
+            }
         }
     }
 
