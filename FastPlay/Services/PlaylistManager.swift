@@ -277,26 +277,30 @@ class PlaylistManager {
             return
         }
 
+        let repeatAll = SettingsManager.shared.repeatMode == 2
+
         if shuffleEnabled && !shuffleOrder.isEmpty {
-            // Shuffle mode
             shuffleIndex += 1
             if shuffleIndex >= shuffleOrder.count {
-                // Reshuffle at end
+                // End of shuffle order: only continue if repeat-all is on,
+                // otherwise stop (matches Windows behaviour).
+                guard repeatAll else {
+                    AudioEngine.shared.stop()
+                    return
+                }
                 generateShuffleOrder()
                 shuffleIndex = 0
             }
             playTrack(at: shuffleOrder[shuffleIndex])
         } else {
-            // Normal mode
             let nextIndex = currentIndex + 1
             if nextIndex < tracks.count {
                 playTrack(at: nextIndex)
-            } else if SettingsManager.shared.repeatMode == 2 {
-                // Repeat all: wrap to beginning
+            } else if repeatAll {
                 playTrack(at: 0)
-            } else if SettingsManager.shared.autoAdvance {
-                // Legacy autoAdvance behavior (wrap to start)
-                playTrack(at: 0)
+            } else {
+                // End of playlist with repeat off: stop, do not wrap.
+                AudioEngine.shared.stop()
             }
         }
     }
