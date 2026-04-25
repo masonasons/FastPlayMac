@@ -36,7 +36,6 @@ class MainWindowController: NSWindowController {
 
         self.init(window: window)
 
-        window.delegate = self
         setupUI()
         setupMenuShortcuts()
         setupMetadataCallback()
@@ -1060,22 +1059,3 @@ class MainWindowController: NSWindowController {
     }
 }
 
-// MARK: - Window Delegate Extension
-
-extension MainWindowController: NSWindowDelegate {
-
-    func windowWillClose(_ notification: Notification) {
-        // If minimize to tray is enabled, hide instead of close
-        if SettingsManager.shared.minimizeToTray {
-            window?.orderOut(nil)
-        }
-    }
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if SettingsManager.shared.minimizeToTray {
-            sender.orderOut(nil)
-            return false
-        }
-        return true
-    }
-}

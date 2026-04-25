@@ -17,7 +17,6 @@
 		1100000000000008 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000008 /* HotkeyManager.swift */; };
 		1100000000000009 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000009 /* Models.swift */; };
 		1100000000000010 /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000010 /* MainWindowController.swift */; };
-		1100000000000011 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000011 /* StatusBarController.swift */; };
 		1100000000000015 /* PreferencesWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000018 /* PreferencesWindowController.swift */; };
 		1100000000000040 /* PlaylistWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000040 /* PlaylistWindowController.swift */; };
 		1100000000000041 /* RadioWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000041 /* RadioWindowController.swift */; };
@@ -66,7 +65,6 @@
 		2100000000000008 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
 		2100000000000009 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		2100000000000010 /* MainWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowController.swift; sourceTree = "<group>"; };
-		2100000000000011 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		2100000000000018 /* PreferencesWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesWindowController.swift; sourceTree = "<group>"; };
 		2100000000000040 /* PlaylistWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistWindowController.swift; sourceTree = "<group>"; };
 		2100000000000041 /* RadioWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioWindowController.swift; sourceTree = "<group>"; };
@@ -223,7 +221,6 @@
 			isa = PBXGroup;
 			children = (
 				4100000000000051 /* MainWindow */,
-				4100000000000052 /* StatusBar */,
 				4100000000000053 /* Preferences */,
 				4100000000000054 /* Dialogs */,
 			);
@@ -236,14 +233,6 @@
 				2100000000000010 /* MainWindowController.swift */,
 			);
 			path = MainWindow;
-			sourceTree = "<group>";
-		};
-		4100000000000052 /* StatusBar */ = {
-			isa = PBXGroup;
-			children = (
-				2100000000000011 /* StatusBarController.swift */,
-			);
-			path = StatusBar;
 			sourceTree = "<group>";
 		};
 		4100000000000053 /* Preferences */ = {
@@ -394,7 +383,6 @@
 				1100000000000008 /* HotkeyManager.swift in Sources */,
 				1100000000000009 /* Models.swift in Sources */,
 				1100000000000010 /* MainWindowController.swift in Sources */,
-				1100000000000011 /* StatusBarController.swift in Sources */,
 				1100000000000015 /* PreferencesWindowController.swift in Sources */,
 				1100000000000040 /* PlaylistWindowController.swift in Sources */,
 				1100000000000041 /* RadioWindowController.swift in Sources */,

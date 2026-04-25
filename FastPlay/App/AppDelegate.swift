@@ -12,7 +12,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Properties
 
     var mainWindowController: MainWindowController?
-    var statusBarController: StatusBarController?
 
     // Timer for UI updates
     private var updateTimer: Timer?
@@ -44,11 +43,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create main window
         mainWindowController = MainWindowController()
         mainWindowController?.showWindow(nil)
-
-        // Set up status bar if enabled
-        if SettingsManager.shared.minimizeToTray {
-            statusBarController = StatusBarController()
-        }
 
         // Set up global hotkeys
         HotkeyManager.shared.registerHotkeys()
@@ -106,8 +100,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        // Don't quit when window closes if minimize to tray is enabled
-        return !SettingsManager.shared.minimizeToTray
+        // Audio player: keep running when the window is closed so playback
+        // continues. Re-show via the dock icon (applicationShouldHandleReopen).
+        return false
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

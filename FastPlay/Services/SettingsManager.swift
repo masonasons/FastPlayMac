@@ -147,7 +147,6 @@ class SettingsManager {
     var rememberState: Bool = false            // (Windows: g_rememberState = false)
     var rememberPosMinutes: Int = 0            // (Windows: g_rememberPosMinutes = 0)
     var bringToFront: Bool = true              // (Windows: g_bringToFront = true)
-    var minimizeToTray: Bool = true            // (Windows: g_minimizeToTray = true)
     var loadFolder: Bool = false               // (Windows: g_loadFolder = false)
     var showTitleInWindow: Bool = true         // (Windows: g_showTitleInWindow = true)
 
@@ -421,7 +420,6 @@ class SettingsManager {
             case "RememberState": rememberState = value == "1"
             case "RememberPosMinutes": rememberPosMinutes = Int(value) ?? 0
             case "BringToFront": bringToFront = value == "1"
-            case "MinimizeToTray": minimizeToTray = value == "1"
             case "LoadFolder": loadFolder = value == "1"
             case "ShowTitleInWindow": showTitleInWindow = value == "1"
             case "HotkeysEnabled": hotkeysEnabled = value == "1"
@@ -604,7 +602,6 @@ class SettingsManager {
         content += "RememberState=\(rememberState ? 1 : 0)\n"
         content += "RememberPosMinutes=\(rememberPosMinutes)\n"
         content += "BringToFront=\(bringToFront ? 1 : 0)\n"
-        content += "MinimizeToTray=\(minimizeToTray ? 1 : 0)\n"
         content += "LoadFolder=\(loadFolder ? 1 : 0)\n"
         content += "ShowTitleInWindow=\(showTitleInWindow ? 1 : 0)\n"
         content += "HotkeysEnabled=\(hotkeysEnabled ? 1 : 0)\n"
