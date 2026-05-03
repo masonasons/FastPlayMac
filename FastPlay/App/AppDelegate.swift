@@ -40,6 +40,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Initialize database
         DatabaseManager.shared.initialize()
 
+        // Start scheduled-event runner (60s timer matches Windows IDT_SCHEDULER)
+        SchedulerService.shared.start()
+
         // Create main window
         mainWindowController = MainWindowController()
         mainWindowController?.showWindow(nil)

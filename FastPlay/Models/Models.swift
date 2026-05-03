@@ -56,30 +56,75 @@ struct PodcastEpisode {
 
 // MARK: - Scheduled Event
 
+enum ScheduleAction: Int {
+    case playback = 0
+    case recording = 1
+    case both = 2
+
+    var displayName: String {
+        switch self {
+        case .playback: return "Play"
+        case .recording: return "Record"
+        case .both: return "Play+Record"
+        }
+    }
+}
+
+enum ScheduleSource: Int {
+    case file = 0
+    case radio = 1
+}
+
+enum ScheduleRepeat: Int {
+    case none = 0
+    case daily = 1
+    case weekly = 2
+    case weekdays = 3
+    case weekends = 4
+    case monthly = 5
+
+    var displayName: String {
+        switch self {
+        case .none: return "Once"
+        case .daily: return "Daily"
+        case .weekly: return "Weekly"
+        case .weekdays: return "Weekdays"
+        case .weekends: return "Weekends"
+        case .monthly: return "Monthly"
+        }
+    }
+}
+
+enum ScheduleStopAction: Int {
+    case stopBoth = 0
+    case stopPlayback = 1
+    case stopRecording = 2
+}
+
 struct ScheduledEvent {
     var id: Int64?
     var name: String
-    var filepath: String
-    var hour: Int
-    var minute: Int
-    var days: String       // Comma-separated day indices "0,1,2,3,4,5,6" or "SMTWTFS" format
+    var action: ScheduleAction
+    var sourceType: ScheduleSource
+    var sourcePath: String          // File path or radio station URL
+    var radioStationId: Int64       // Radio station ID (0 if file)
+    var scheduledTime: Int64        // Unix timestamp of next scheduled run
+    var repeatType: ScheduleRepeat
     var enabled: Bool
+    var lastRun: Int64              // Unix timestamp of last run
+    var duration: Int               // Duration in minutes (0 = no limit)
+    var stopAction: ScheduleStopAction
 
-    /// Formatted time string
-    var time: String {
-        return String(format: "%02d:%02d", hour, minute)
-    }
-
-    /// Parse days string to array of enabled weekdays (0=Sunday)
-    var enabledDays: [Int] {
-        // Handle comma-separated format "0,1,2,3,4"
-        if days.contains(",") {
-            return days.split(separator: ",").compactMap { Int($0) }
-        }
-        // Handle "SMTWTFS" or "1111100" format
-        var result: [Int] = []
-        for (index, char) in days.enumerated() where char == "1" {
-            result.append(index)
+    /// Display string used in the scheduler list
+    var displayName: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        let timeStr = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(scheduledTime)))
+        let prefix = enabled ? "[On] " : "[Off] "
+        var result = "\(prefix)\(name) - \(action.displayName) @ \(timeStr) (\(repeatType.displayName))"
+        if duration > 0 {
+            result += " [\(duration)m]"
         }
         return result
     }

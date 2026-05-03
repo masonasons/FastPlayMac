@@ -1535,6 +1535,17 @@ class AudioEngine {
         }
     }
 
+    /// Current mute state
+    var muted: Bool { isMuted }
+
+    /// Set mute state without announcing — used by the scheduler.
+    func setMuted(_ value: Bool) {
+        guard isMuted != value else { return }
+        isMuted = value
+        SettingsManager.shared.muted = isMuted
+        applyVolume()
+    }
+
     private func applyVolume() {
         guard _fxStream != 0 else { return }
 

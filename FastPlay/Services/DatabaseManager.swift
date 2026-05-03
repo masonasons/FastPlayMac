@@ -103,17 +103,24 @@ class DatabaseManager {
         execute("ALTER TABLE PodcastEpisodes ADD COLUMN guid TEXT")
         execute("ALTER TABLE PodcastEpisodes ADD COLUMN local_path TEXT")
 
-        // Scheduled events table
+        // Drop legacy CamelCase scheduler table (incompatible schema, never functional on Mac)
+        execute("DROP TABLE IF EXISTS ScheduledEvents")
+
+        // Scheduled events table — schema matches Windows src/database.cpp
         execute("""
-            CREATE TABLE IF NOT EXISTS ScheduledEvents (
+            CREATE TABLE IF NOT EXISTS scheduled_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
-                filepath TEXT NOT NULL,
-                hour INTEGER NOT NULL,
-                minute INTEGER NOT NULL,
-                days TEXT NOT NULL,
+                action INTEGER NOT NULL,
+                source_type INTEGER NOT NULL,
+                source_path TEXT NOT NULL,
+                radio_station_id INTEGER DEFAULT 0,
+                scheduled_time INTEGER NOT NULL,
+                repeat_type INTEGER DEFAULT 0,
                 enabled INTEGER DEFAULT 1,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                last_run INTEGER DEFAULT 0,
+                duration INTEGER DEFAULT 0,
+                stop_action INTEGER DEFAULT 0
             )
         """)
 
@@ -560,78 +567,149 @@ class DatabaseManager {
 
     // MARK: - Scheduled Events
 
-    func addScheduledEvent(name: String, filepath: String, hour: Int, minute: Int, days: String) -> Int64 {
-        let sql = "INSERT INTO ScheduledEvents (name, filepath, hour, minute, days) VALUES (?, ?, ?, ?, ?)"
+    @discardableResult
+    func addScheduledEvent(_ event: ScheduledEvent) -> Int64 {
+        let sql = """
+            INSERT INTO scheduled_events
+                (name, action, source_type, source_path, radio_station_id,
+                 scheduled_time, repeat_type, enabled, last_run, duration, stop_action)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+        """
         var stmt: OpaquePointer?
-
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return -1 }
         defer { sqlite3_finalize(stmt) }
 
-        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT)
-        sqlite3_bind_text(stmt, 2, filepath, -1, SQLITE_TRANSIENT)
-        sqlite3_bind_int(stmt, 3, Int32(hour))
-        sqlite3_bind_int(stmt, 4, Int32(minute))
-        sqlite3_bind_text(stmt, 5, days, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 1, event.name, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int(stmt, 2, Int32(event.action.rawValue))
+        sqlite3_bind_int(stmt, 3, Int32(event.sourceType.rawValue))
+        sqlite3_bind_text(stmt, 4, event.sourcePath, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int64(stmt, 5, event.radioStationId)
+        sqlite3_bind_int64(stmt, 6, event.scheduledTime)
+        sqlite3_bind_int(stmt, 7, Int32(event.repeatType.rawValue))
+        sqlite3_bind_int(stmt, 8, event.enabled ? 1 : 0)
+        sqlite3_bind_int(stmt, 9, Int32(event.duration))
+        sqlite3_bind_int(stmt, 10, Int32(event.stopAction.rawValue))
 
         guard sqlite3_step(stmt) == SQLITE_DONE else { return -1 }
         return sqlite3_last_insert_rowid(db)
     }
 
-    func getAllScheduledEvents() -> [ScheduledEvent] {
-        let sql = "SELECT id, name, filepath, hour, minute, days, enabled FROM ScheduledEvents ORDER BY hour, minute"
+    @discardableResult
+    func updateScheduledEvent(_ event: ScheduledEvent) -> Bool {
+        guard let id = event.id else { return false }
+        let sql = """
+            UPDATE scheduled_events SET
+                name = ?, action = ?, source_type = ?, source_path = ?,
+                radio_station_id = ?, scheduled_time = ?, repeat_type = ?, enabled = ?,
+                duration = ?, stop_action = ?
+            WHERE id = ?
+        """
         var stmt: OpaquePointer?
-        var events: [ScheduledEvent] = []
-
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
         defer { sqlite3_finalize(stmt) }
 
-        while sqlite3_step(stmt) == SQLITE_ROW {
-            let id = sqlite3_column_int64(stmt, 0)
-            let name = String(cString: sqlite3_column_text(stmt, 1))
-            let filepath = String(cString: sqlite3_column_text(stmt, 2))
-            let hour = Int(sqlite3_column_int(stmt, 3))
-            let minute = Int(sqlite3_column_int(stmt, 4))
-            let days = String(cString: sqlite3_column_text(stmt, 5))
-            let enabled = sqlite3_column_int(stmt, 6) != 0
+        sqlite3_bind_text(stmt, 1, event.name, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int(stmt, 2, Int32(event.action.rawValue))
+        sqlite3_bind_int(stmt, 3, Int32(event.sourceType.rawValue))
+        sqlite3_bind_text(stmt, 4, event.sourcePath, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int64(stmt, 5, event.radioStationId)
+        sqlite3_bind_int64(stmt, 6, event.scheduledTime)
+        sqlite3_bind_int(stmt, 7, Int32(event.repeatType.rawValue))
+        sqlite3_bind_int(stmt, 8, event.enabled ? 1 : 0)
+        sqlite3_bind_int(stmt, 9, Int32(event.duration))
+        sqlite3_bind_int(stmt, 10, Int32(event.stopAction.rawValue))
+        sqlite3_bind_int64(stmt, 11, id)
 
-            events.append(ScheduledEvent(
-                id: id, name: name, filepath: filepath,
-                hour: hour, minute: minute, days: days, enabled: enabled
-            ))
-        }
-
-        return events
-    }
-
-    func saveScheduledEvent(_ event: ScheduledEvent) {
-        if let id = event.id {
-            // Update existing
-            let sql = "UPDATE ScheduledEvents SET name = ?, filepath = ?, hour = ?, minute = ?, days = ?, enabled = ? WHERE id = ?"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-
-            sqlite3_bind_text(stmt, 1, event.name, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(stmt, 2, event.filepath, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_int(stmt, 3, Int32(event.hour))
-            sqlite3_bind_int(stmt, 4, Int32(event.minute))
-            sqlite3_bind_text(stmt, 5, event.days, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_int(stmt, 6, event.enabled ? 1 : 0)
-            sqlite3_bind_int64(stmt, 7, id)
-            sqlite3_step(stmt)
-        } else {
-            // Insert new
-            _ = addScheduledEvent(name: event.name, filepath: event.filepath,
-                                  hour: event.hour, minute: event.minute, days: event.days)
-        }
-    }
-
-    func deleteScheduledEvent(id: Int64) {
-        execute("DELETE FROM ScheduledEvents WHERE id = \(id)")
+        return sqlite3_step(stmt) == SQLITE_DONE
     }
 
     func setScheduledEventEnabled(id: Int64, enabled: Bool) {
-        execute("UPDATE ScheduledEvents SET enabled = \(enabled ? 1 : 0) WHERE id = \(id)")
+        execute("UPDATE scheduled_events SET enabled = \(enabled ? 1 : 0) WHERE id = \(id)")
+    }
+
+    func setScheduledEventLastRun(id: Int64, lastRun: Int64) {
+        execute("UPDATE scheduled_events SET last_run = \(lastRun) WHERE id = \(id)")
+    }
+
+    func setScheduledEventTime(id: Int64, scheduledTime: Int64) {
+        execute("UPDATE scheduled_events SET scheduled_time = \(scheduledTime) WHERE id = \(id)")
+    }
+
+    func deleteScheduledEvent(id: Int64) {
+        execute("DELETE FROM scheduled_events WHERE id = \(id)")
+    }
+
+    func getAllScheduledEvents() -> [ScheduledEvent] {
+        let sql = """
+            SELECT id, name, action, source_type, source_path,
+                   radio_station_id, scheduled_time, repeat_type, enabled,
+                   last_run, duration, stop_action
+            FROM scheduled_events
+            ORDER BY scheduled_time ASC
+        """
+        return query(sql) { stmt in
+            return readScheduledEventRow(stmt)
+        }
+    }
+
+    func getPendingScheduledEvents() -> [ScheduledEvent] {
+        let now = Int64(Date().timeIntervalSince1970)
+        let sql = """
+            SELECT id, name, action, source_type, source_path,
+                   radio_station_id, scheduled_time, repeat_type, enabled,
+                   last_run, duration, stop_action
+            FROM scheduled_events
+            WHERE enabled = 1 AND scheduled_time <= ? AND last_run < scheduled_time
+            ORDER BY scheduled_time ASC
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_int64(stmt, 1, now)
+
+        var events: [ScheduledEvent] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let ev = readScheduledEventRow(stmt) {
+                events.append(ev)
+            }
+        }
+        return events
+    }
+
+    private func query<T>(_ sql: String, reader: (OpaquePointer?) -> T?) -> [T] {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        var results: [T] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let row = reader(stmt) {
+                results.append(row)
+            }
+        }
+        return results
+    }
+
+    private func readScheduledEventRow(_ stmt: OpaquePointer?) -> ScheduledEvent? {
+        let id = sqlite3_column_int64(stmt, 0)
+        let name = String(cString: sqlite3_column_text(stmt, 1))
+        let action = ScheduleAction(rawValue: Int(sqlite3_column_int(stmt, 2))) ?? .playback
+        let sourceType = ScheduleSource(rawValue: Int(sqlite3_column_int(stmt, 3))) ?? .file
+        let sourcePath = String(cString: sqlite3_column_text(stmt, 4))
+        let radioStationId = sqlite3_column_int64(stmt, 5)
+        let scheduledTime = sqlite3_column_int64(stmt, 6)
+        let repeatType = ScheduleRepeat(rawValue: Int(sqlite3_column_int(stmt, 7))) ?? .none
+        let enabled = sqlite3_column_int(stmt, 8) != 0
+        let lastRun = sqlite3_column_int64(stmt, 9)
+        let duration = Int(sqlite3_column_int(stmt, 10))
+        let stopAction = ScheduleStopAction(rawValue: Int(sqlite3_column_int(stmt, 11))) ?? .stopBoth
+
+        return ScheduledEvent(
+            id: id, name: name, action: action, sourceType: sourceType,
+            sourcePath: sourcePath, radioStationId: radioStationId,
+            scheduledTime: scheduledTime, repeatType: repeatType, enabled: enabled,
+            lastRun: lastRun, duration: duration, stopAction: stopAction
+        )
     }
 
     // MARK: - File Positions

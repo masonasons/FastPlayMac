@@ -34,6 +34,7 @@
 		1100000000000062 /* DownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000062 /* DownloadManager.swift */; };
 		1100000000000063 /* SongHistoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000063 /* SongHistoryWindowController.swift */; };
 		1100000000000064 /* SpatialAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000064 /* SpatialAudio.swift */; };
+		1100000000000065 /* SchedulerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2100000000000065 /* SchedulerService.swift */; };
 		1100000000000012 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 2100000000000012 /* MainMenu.xib */; };
 		1100000000000013 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2100000000000013 /* libsqlite3.tbd */; };
 		1100000000000014 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2100000000000014 /* Carbon.framework */; };
@@ -83,6 +84,7 @@
 		2100000000000062 /* DownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadManager.swift; sourceTree = "<group>"; };
 		2100000000000063 /* SongHistoryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongHistoryWindowController.swift; sourceTree = "<group>"; };
 		2100000000000064 /* SpatialAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialAudio.swift; sourceTree = "<group>"; };
+		2100000000000065 /* SchedulerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulerService.swift; sourceTree = "<group>"; };
 		2100000000000012 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		2100000000000013 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		2100000000000014 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
@@ -213,6 +215,7 @@
 				2100000000000008 /* HotkeyManager.swift */,
 				2100000000000048 /* NetworkManager.swift */,
 				2100000000000062 /* DownloadManager.swift */,
+				2100000000000065 /* SchedulerService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -399,6 +402,7 @@
 				1100000000000062 /* DownloadManager.swift in Sources */,
 				1100000000000063 /* SongHistoryWindowController.swift in Sources */,
 				1100000000000064 /* SpatialAudio.swift in Sources */,
+				1100000000000065 /* SchedulerService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
