@@ -102,6 +102,8 @@ class DatabaseManager {
         // Add columns if they don't exist (for upgrades)
         execute("ALTER TABLE PodcastEpisodes ADD COLUMN guid TEXT")
         execute("ALTER TABLE PodcastEpisodes ADD COLUMN local_path TEXT")
+        // Custom station ordering (parity with Windows radio_favorites.sort_order)
+        execute("ALTER TABLE RadioStations ADD COLUMN sort_order INTEGER DEFAULT 0")
 
         // Drop legacy CamelCase scheduler table (incompatible schema, never functional on Mac)
         execute("DROP TABLE IF EXISTS ScheduledEvents")
@@ -253,7 +255,8 @@ class DatabaseManager {
     }
 
     func getRadioStations() -> [RadioStation] {
-        let sql = "SELECT id, name, url, genre, country, bitrate FROM RadioStations ORDER BY name"
+        // Match Windows ordering: explicit custom order first, then alphabetical fallback (sort_order 0).
+        let sql = "SELECT id, name, url, genre, country, bitrate FROM RadioStations ORDER BY sort_order ASC, name COLLATE NOCASE ASC"
         var stmt: OpaquePointer?
         var stations: [RadioStation] = []
 
@@ -276,6 +279,51 @@ class DatabaseManager {
 
     func deleteRadioStation(id: Int64) {
         execute("DELETE FROM RadioStations WHERE id = \(id)")
+    }
+
+    /// Persist a custom station order by assigning sequential sort_order values (1...N)
+    /// in the given array order. Mirrors Windows UpdateRadioSortOrders().
+    func updateRadioSortOrders(_ stations: [RadioStation]) {
+        let sql = "UPDATE RadioStations SET sort_order = ? WHERE id = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+
+        execute("BEGIN TRANSACTION")
+        for (index, station) in stations.enumerated() {
+            guard let id = station.id else { continue }
+            sqlite3_bind_int(stmt, 1, Int32(index + 1))
+            sqlite3_bind_int64(stmt, 2, id)
+            sqlite3_step(stmt)
+            sqlite3_reset(stmt)
+        }
+        execute("COMMIT")
+    }
+
+    /// Highest sort_order currently assigned (0 if none). Used to append imported
+    /// stations after existing ones while preserving their file order.
+    func maxRadioSortOrder() -> Int {
+        let sql = "SELECT MAX(sort_order) FROM RadioStations"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return 0 }
+        defer { sqlite3_finalize(stmt) }
+
+        if sqlite3_step(stmt) == SQLITE_ROW, sqlite3_column_type(stmt, 0) != SQLITE_NULL {
+            return Int(sqlite3_column_int(stmt, 0))
+        }
+        return 0
+    }
+
+    /// Set the sort_order for a single station.
+    func setRadioSortOrder(id: Int64, sortOrder: Int) {
+        let sql = "UPDATE RadioStations SET sort_order = ? WHERE id = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_int(stmt, 1, Int32(sortOrder))
+        sqlite3_bind_int64(stmt, 2, id)
+        sqlite3_step(stmt)
     }
 
     /// Get all radio stations (alias for getRadioStations)

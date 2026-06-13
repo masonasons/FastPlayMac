@@ -118,7 +118,7 @@ class RadioWindowController: NSWindowController {
         exportButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(exportButton)
 
-        let helpLabel = NSTextField(labelWithString: "Enter = play, Delete = remove, Escape = close")
+        let helpLabel = NSTextField(labelWithString: "Enter = play, Delete = remove, Option+Up/Down = reorder, Escape = close")
         helpLabel.translatesAutoresizingMaskIntoConstraints = false
         helpLabel.font = NSFont.systemFont(ofSize: 11)
         helpLabel.textColor = .secondaryLabelColor
@@ -472,6 +472,9 @@ class RadioWindowController: NSWindowController {
         var count = 0
         var pendingName: String?
         let lines = content.components(separatedBy: .newlines)
+        // Append imported stations after existing ones, preserving file order (parity with
+        // Windows AppendRadioSortOrder).
+        var nextOrder = DatabaseManager.shared.maxRadioSortOrder() + 1
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -494,8 +497,11 @@ class RadioWindowController: NSWindowController {
             // This should be a URL line
             if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
                 let name = pendingName ?? URL(string: trimmed)?.host ?? trimmed
-                let station = RadioStation(id: nil, name: name, url: trimmed, genre: nil, country: nil, bitrate: nil)
-                DatabaseManager.shared.saveRadioStation(station)
+                let id = DatabaseManager.shared.addRadioStation(name: name, url: trimmed)
+                if id >= 0 {
+                    DatabaseManager.shared.setRadioSortOrder(id: id, sortOrder: nextOrder)
+                    nextOrder += 1
+                }
                 count += 1
                 pendingName = nil
             }
@@ -542,12 +548,18 @@ class RadioWindowController: NSWindowController {
             }
         }
 
-        // Match files with titles and import
-        for (num, url) in files {
+        // Match files with titles and import, preserving the PLS entry order (File1, File2, ...).
+        // Append after existing stations so custom ordering is retained (parity with Windows).
+        var nextOrder = DatabaseManager.shared.maxRadioSortOrder() + 1
+        for num in files.keys.sorted() {
+            guard let url = files[num] else { continue }
             if url.hasPrefix("http://") || url.hasPrefix("https://") {
                 let name = titles[num] ?? URL(string: url)?.host ?? url
-                let station = RadioStation(id: nil, name: name, url: url, genre: nil, country: nil, bitrate: nil)
-                DatabaseManager.shared.saveRadioStation(station)
+                let id = DatabaseManager.shared.addRadioStation(name: name, url: url)
+                if id >= 0 {
+                    DatabaseManager.shared.setRadioSortOrder(id: id, sortOrder: nextOrder)
+                    nextOrder += 1
+                }
                 count += 1
             }
         }
@@ -880,7 +892,39 @@ class RadioWindowController: NSWindowController {
             return true
         }
 
+        // Option+Up / Option+Down = reorder favorite station (parity with playlist reordering)
+        let onFavoritesTab = (tabView.selectedTabViewItem?.identifier as? String) == "favorites"
+        if onFavoritesTab && event.modifierFlags.contains(.option) {
+            if event.keyCode == 126 {
+                moveSelectedFavorite(up: true)
+                return true
+            }
+            if event.keyCode == 125 {
+                moveSelectedFavorite(up: false)
+                return true
+            }
+        }
+
         return false
+    }
+
+    /// Move the selected favorite up or down and persist the new order.
+    private func moveSelectedFavorite(up: Bool) {
+        let index = favoritesTable.selectedRow
+        let newIndex = up ? index - 1 : index + 1
+        guard index >= 0 && index < favorites.count,
+              newIndex >= 0 && newIndex < favorites.count else { return }
+
+        let station = favorites.remove(at: index)
+        favorites.insert(station, at: newIndex)
+
+        // Persist the full ordering so it survives reloads, export, and restarts.
+        DatabaseManager.shared.updateRadioSortOrders(favorites)
+
+        favoritesTable.reloadData()
+        favoritesTable.selectRowIndexes(IndexSet(integer: newIndex), byExtendingSelection: false)
+        favoritesTable.scrollRowToVisible(newIndex)
+        AccessibilityManager.announce("\(station.name), \(newIndex + 1) of \(favorites.count)")
     }
 
     // MARK: - Data Loading
