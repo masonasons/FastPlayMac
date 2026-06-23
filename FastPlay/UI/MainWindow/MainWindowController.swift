@@ -333,7 +333,7 @@ class MainWindowController: NSWindowController {
                 PlaylistManager.shared.toggleRepeatMode()
                 return true
             case "j":
-                showJumpToTimeDialog()
+                JumpToTimeWindowController.shared.show()
                 return true
             case "m":
                 addBookmark()
@@ -963,25 +963,6 @@ class MainWindowController: NSWindowController {
 
     // MARK: - Dialogs
 
-    private func showJumpToTimeDialog() {
-        let alert = NSAlert()
-        alert.messageText = "Jump to Time"
-        alert.informativeText = "Enter time (MM:SS or HH:MM:SS):"
-        alert.addButton(withTitle: "Jump")
-        alert.addButton(withTitle: "Cancel")
-
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
-        textField.placeholderString = "0:00"
-        alert.accessoryView = textField
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            let timeStr = textField.stringValue
-            if let seconds = parseTimeString(timeStr) {
-                AudioEngine.shared.seek(to: seconds)
-            }
-        }
-    }
-
     private func showAudioDeviceMenu() {
         let devices = AudioEngine.shared.getAvailableDevices()
         guard !devices.isEmpty else {
@@ -1028,29 +1009,6 @@ class MainWindowController: NSWindowController {
         }
     }
 
-    private func parseTimeString(_ str: String) -> Double? {
-        let parts = str.split(separator: ":")
-        guard !parts.isEmpty else { return nil }
-
-        var seconds: Double = 0
-
-        if parts.count == 3 {
-            // HH:MM:SS
-            guard let h = Double(parts[0]), let m = Double(parts[1]), let s = Double(parts[2]) else { return nil }
-            seconds = h * 3600 + m * 60 + s
-        } else if parts.count == 2 {
-            // MM:SS
-            guard let m = Double(parts[0]), let s = Double(parts[1]) else { return nil }
-            seconds = m * 60 + s
-        } else {
-            // Just seconds
-            guard let s = Double(parts[0]) else { return nil }
-            seconds = s
-        }
-
-        return seconds
-    }
-
     // MARK: - Window Delegate
 
     override func windowDidLoad() {
@@ -1058,4 +1016,3 @@ class MainWindowController: NSWindowController {
         updateUI()
     }
 }
-
